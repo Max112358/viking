@@ -1,7 +1,22 @@
-from flask import Flask, jsonify, request
+from flask import Flask, send_from_directory, jsonify, request
+import os
 from collections import defaultdict
 
-app = Flask(__name__)
+#app = Flask(__name__)
+app = Flask(__name__, static_folder='build', static_url_path='')
+
+
+from flask_cors import CORS
+CORS(app)
+
+# Serve the React app
+@app.route('/')
+@app.route('/<path:path>')
+def serve_react_app(path=''):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 # Store messages for each group/room
 room_messages = defaultdict(list)
@@ -48,9 +63,9 @@ def register_user():
 def send_message_to_all_rooms():
     sender = request.form.get('sender')
     message = request.form.get('message')
-    
+
     ensure_user_in_general(sender)  # Ensure the sender is in the general room
-    
+
     if sender and message:
         for room in room_members:
             room_messages[room].append({"type": "room", "room": room, "message": f"{sender}: {message}"})
@@ -63,7 +78,7 @@ def send_message_to_specific_room():
     sender = request.form.get('sender')
     room = request.form.get('room')
     message = request.form.get('message')
-    
+
     ensure_user_in_general(sender)  # Ensure the sender is in the general room
 
     if sender and room and message:
@@ -79,14 +94,14 @@ def send_message_to_specific_user():
     sender = request.form.get('sender')
     recipient = request.form.get('recipient')
     message = request.form.get('message')
-    
+
     global private_communication_enabled
-    
+
     ensure_user_in_general(sender)  # Ensure the sender is in the general room
 
     if not private_communication_enabled:
         return jsonify({"status": "Private communication is disabled"}), 403
-    
+
     if sender and recipient and message:
         private_messages[recipient].append({"type": "private", "from": sender, "message": f"{sender}: {message}"})
         return jsonify({"status": "Private message sent successfully"}), 200
@@ -96,7 +111,7 @@ def send_message_to_specific_user():
 @app.route('/get_messages_for_room', methods=['GET'])
 def get_messages_for_room():
     room = request.args.get('room')
-    
+
     if room:
         room_msgs = room_messages[room]
         room_messages[room] = []  # Clear messages after sending
@@ -107,7 +122,7 @@ def get_messages_for_room():
 @app.route('/get_messages_for_user', methods=['GET'])
 def get_messages_for_user():
     user = request.args.get('user')
-    
+
     ensure_user_in_general(user)  # Ensure the user is in the general room
 
     if user:
@@ -116,11 +131,11 @@ def get_messages_for_user():
         for room in room_members:
             if user in room_members[room]:
                 user_msgs.extend(room_messages[room])
-        
+
         # Get private messages for the user
         user_msgs.extend(private_messages[user])
         private_messages[user] = []  # Clear private messages after retrieving
-        
+
         return jsonify({"messages": user_msgs}), 200
     else:
         return jsonify({"status": "User not specified"}), 400
@@ -130,10 +145,10 @@ def add_specific_user_to_room():
     user = request.form.get('user')
     room = request.form.get('room')
     sender = request.form.get('sender')
-    
+
     if not is_teacher(sender):
         return jsonify({"status": "Unauthorized access"}), 403
-    
+
     ensure_user_in_general(user)  # Ensure the user is in the general room
 
     if user and room:
@@ -149,10 +164,10 @@ def remove_specific_user_from_room():
     user = request.form.get('user')
     room = request.form.get('room')
     sender = request.form.get('sender')
-    
+
     if not is_teacher(sender):
         return jsonify({"status": "Unauthorized access"}), 403
-    
+
     ensure_user_in_general(user)  # Ensure the user is in the general room
 
     if user and room:
@@ -169,10 +184,10 @@ def remove_specific_user_from_room():
 def close_room():
     room = request.form.get('room')
     sender = request.form.get('sender')
-    
+
     if not is_teacher(sender):
         return jsonify({"status": "Unauthorized access"}), 403
-    
+
     if room:
         if room in room_members:
             # Move all users back to the main room
@@ -188,14 +203,14 @@ def close_room():
 @app.route('/toggle_private_communication', methods=['POST'])
 def toggle_private_communication():
     sender = request.form.get('sender')
-    
+
     if not is_teacher(sender):
         return jsonify({"status": "Unauthorized access"}), 403
-    
+
     global private_communication_enabled
     private_communication_enabled = not private_communication_enabled
     status = "enabled" if private_communication_enabled else "disabled"
-    
+
     return jsonify({"status": f"Private communication has been {status}"}), 200
 
 # New function to get rooms a user is a member of
