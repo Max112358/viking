@@ -5,94 +5,132 @@ base_url = 'https://hobefog.pythonanywhere.com'
 
 # Function to send a message to all rooms
 def send_message_to_all_rooms(sender, message):
-    response = requests.post(f'{base_url}/send_message_to_all_rooms', data={
-        'sender': sender,
-        'message': message
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/send_message_to_all_rooms', data={
+            'sender': sender,
+            'message': message
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error sending message to all rooms: {e}")
+        return {}
 
 # Function to send a message to a specific room
 def send_message_to_specific_room(sender, room, message):
-    response = requests.post(f'{base_url}/send_message_to_specific_room', data={
-        'sender': sender,
-        'room': room,
-        'message': message
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/send_message_to_specific_room', data={
+            'sender': sender,
+            'room': room,
+            'message': message
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error sending message to room {room}: {e}")
+        return {}
 
 # Function to send a private message to a specific user
 def send_message_to_specific_user(sender, recipient, message):
-    response = requests.post(f'{base_url}/send_message_to_specific_user', data={
-        'sender': sender,
-        'recipient': recipient,
-        'message': message
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/send_message_to_specific_user', data={
+            'sender': sender,
+            'recipient': recipient,
+            'message': message
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error sending private message to {recipient}: {e}")
+        return {}
 
 # Function to get messages for a specific room
 def get_messages_for_room(room):
-    response = requests.get(f'{base_url}/get_messages_for_room', params={'room': room})
-    return response.json().get('messages', [])
+    try:
+        response = requests.get(f'{base_url}/get_messages_for_room', params={'room': room})
+        return response.json().get('messages', [])
+    except Exception as e:
+        print(f"Error retrieving messages for room {room}: {e}")
+        return []
 
 # Function to get messages for a specific user
 def get_messages_for_user(user):
-    response = requests.get(f'{base_url}/get_messages_for_user', params={'user': user})
-    return response.json().get('messages', [])
+    try:
+        response = requests.get(f'{base_url}/get_messages_for_user', params={'user': user})
+        return response.json().get('messages', [])
+    except Exception as e:
+        print(f"Error retrieving messages for user {user}: {e}")
+        return []
 
 # Function to add a specific user to a room (Teacher privilege)
 def add_specific_user_to_room(teacher, user, room):
-    response = requests.post(f'{base_url}/add_specific_user_to_room', data={
-        'sender': teacher,
-        'user': user,
-        'room': room
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/add_specific_user_to_room', data={
+            'sender': teacher,
+            'user': user,
+            'room': room
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error adding {user} to room {room}: {e}")
+        return {}
 
 # Function to remove a specific user from a room (Teacher privilege)
 def remove_specific_user_from_room(teacher, user, room):
-    response = requests.post(f'{base_url}/remove_specific_user_from_room', data={
-        'sender': teacher,
-        'user': user,
-        'room': room
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/remove_specific_user_from_room', data={
+            'sender': teacher,
+            'user': user,
+            'room': room
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error removing {user} from room {room}: {e}")
+        return {}
 
 # Function to close a room (Teacher privilege)
 def close_room(teacher, room):
-    response = requests.post(f'{base_url}/close_room', data={
-        'sender': teacher,
-        'room': room
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/close_room', data={
+            'sender': teacher,
+            'room': room
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error closing room {room}: {e}")
+        return {}
 
 # Function to toggle private communication (Teacher privilege)
 def toggle_private_communication(teacher):
-    response = requests.post(f'{base_url}/toggle_private_communication', data={
-        'sender': teacher
-    })
-    return response.json()
+    try:
+        response = requests.post(f'{base_url}/toggle_private_communication', data={
+            'sender': teacher
+        })
+        return response.json()
+    except Exception as e:
+        print(f"Error toggling private communication: {e}")
+        return {}
 
 # Function to get the rooms a user is a member of
 def get_user_rooms(user):
-    response = requests.get(f'{base_url}/get_user_rooms', params={'user': user})
-    return response.json().get('rooms', [])
+    try:
+        response = requests.get(f'{base_url}/get_user_rooms', params={'user': user})
+        return response.json().get('rooms', [])
+    except Exception as e:
+        print(f"Error retrieving rooms for user {user}: {e}")
+        return []
 
-# Function to periodically check messages for the user
-def check_for_messages(username):
+# Helper function to print messages with their source (room or private)
+def print_messages(username):
     print(f"Checking for messages for {username}...")
-    messages = get_messages_for_user(username)
+    messages = get_messages_for_user(username)  # Get all messages for the user
+    
     if messages:
         print("New messages:")
         for msg in messages:
-            print(f"- {msg}")
+            if msg['type'] == 'room':
+                print(f"Room {msg['room']}: {msg['message']}")
+            elif msg['type'] == 'private':
+                print(f"Private message from {msg['from']}: {msg['message']}")
     else:
         print("No new messages.")
-
-# Function to check which rooms a user is a member of
-def check_user_rooms(username):
-    print(f"Getting rooms for {username}...")
-    rooms = get_user_rooms(username)
-    print(f"{username} is a member of: {', '.join(rooms) if rooms else 'No rooms'}")
 
 def run_client(username):
     print(f"Running client for {username}")
@@ -105,7 +143,7 @@ def run_client(username):
     
     while True:
         # Periodically check for new messages (every 5 seconds)
-        check_for_messages(username)
+        print_messages(username)
 
         # Only allow mingli to manage rooms and toggle private messaging
         if username == 'mingli':
@@ -198,6 +236,12 @@ def run_client(username):
         # Wait for 5 seconds before checking for new messages again
         print("\nWaiting for 5 seconds before the next check...\n")
         time.sleep(5)
+
+# Function to check which rooms a user is a member of
+def check_user_rooms(username):
+    print(f"Getting rooms for {username}...")
+    rooms = get_user_rooms(username)
+    print(f"{username} is a member of: {', '.join(rooms) if rooms else 'No rooms'}")
 
 if __name__ == "__main__":
     username = input("Enter your username: ")

@@ -33,6 +33,15 @@ def ensure_user_in_general(user):
     if user not in room_members[main_room]:
         room_members[main_room].append(user)
 
+# ---- New Endpoint to Register Users ----
+@app.route('/register_user', methods=['POST'])
+def register_user():
+    username = request.form.get('username')
+    if username:
+        ensure_user_in_general(username)  # Add user to general room
+        return jsonify({"status": f"{username} registered and added to general room."}), 200
+    return jsonify({"status": "Missing username."}), 400
+
 # ---- Flask Endpoints ----
 
 @app.route('/send_message_to_all_rooms', methods=['POST'])
@@ -44,7 +53,7 @@ def send_message_to_all_rooms():
     
     if sender and message:
         for room in room_members:
-            room_messages[room].append(f"{sender}: {message}")
+            room_messages[room].append({"type": "room", "room": room, "message": f"{sender}: {message}"})
         return jsonify({"status": "Message sent to all rooms successfully"}), 200
     else:
         return jsonify({"status": "Missing required fields"}), 400
@@ -60,7 +69,7 @@ def send_message_to_specific_room():
     if sender and room and message:
         if sender not in room_members[room]:
             return jsonify({"status": f"{sender} is not a member of {room}"}), 400
-        room_messages[room].append(f"{sender}: {message}")
+        room_messages[room].append({"type": "room", "room": room, "message": f"{sender}: {message}"})
         return jsonify({"status": f"Message sent to room {room} successfully"}), 200
     else:
         return jsonify({"status": "Missing required fields"}), 400
@@ -79,7 +88,7 @@ def send_message_to_specific_user():
         return jsonify({"status": "Private communication is disabled"}), 403
     
     if sender and recipient and message:
-        private_messages[recipient].append(f"{sender}: {message}")
+        private_messages[recipient].append({"type": "private", "from": sender, "message": f"{sender}: {message}"})
         return jsonify({"status": "Private message sent successfully"}), 200
     else:
         return jsonify({"status": "Missing required fields"}), 400
