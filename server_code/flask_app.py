@@ -28,12 +28,19 @@ def is_teacher(user):
     """Check if the user is the teacher."""
     return user == teacher
 
+def ensure_user_in_general(user):
+    """Ensure a user is in the general room by default."""
+    if user not in room_members[main_room]:
+        room_members[main_room].append(user)
+
 # ---- Flask Endpoints ----
 
 @app.route('/send_message_to_all_rooms', methods=['POST'])
 def send_message_to_all_rooms():
     sender = request.form.get('sender')
     message = request.form.get('message')
+    
+    ensure_user_in_general(sender)  # Ensure the sender is in the general room
     
     if sender and message:
         for room in room_members:
@@ -48,11 +55,13 @@ def send_message_to_specific_room():
     room = request.form.get('room')
     message = request.form.get('message')
     
+    ensure_user_in_general(sender)  # Ensure the sender is in the general room
+
     if sender and room and message:
         if sender not in room_members[room]:
             return jsonify({"status": f"{sender} is not a member of {room}"}), 400
         room_messages[room].append(f"{sender}: {message}")
-        return jsonify({"status": "Message sent to room {room} successfully"}), 200
+        return jsonify({"status": f"Message sent to room {room} successfully"}), 200
     else:
         return jsonify({"status": "Missing required fields"}), 400
 
@@ -64,6 +73,8 @@ def send_message_to_specific_user():
     
     global private_communication_enabled
     
+    ensure_user_in_general(sender)  # Ensure the sender is in the general room
+
     if not private_communication_enabled:
         return jsonify({"status": "Private communication is disabled"}), 403
     
@@ -88,6 +99,8 @@ def get_messages_for_room():
 def get_messages_for_user():
     user = request.args.get('user')
     
+    ensure_user_in_general(user)  # Ensure the user is in the general room
+
     if user:
         # Get messages from rooms the user belongs to
         user_msgs = []
@@ -112,6 +125,8 @@ def add_specific_user_to_room():
     if not is_teacher(sender):
         return jsonify({"status": "Unauthorized access"}), 403
     
+    ensure_user_in_general(user)  # Ensure the user is in the general room
+
     if user and room:
         if room not in room_members:
             room_members[room] = []  # Create the room if it doesn't exist
@@ -129,6 +144,8 @@ def remove_specific_user_from_room():
     if not is_teacher(sender):
         return jsonify({"status": "Unauthorized access"}), 403
     
+    ensure_user_in_general(user)  # Ensure the user is in the general room
+
     if user and room:
         if user in room_members[room]:
             room_members[room].remove(user)
@@ -171,6 +188,19 @@ def toggle_private_communication():
     status = "enabled" if private_communication_enabled else "disabled"
     
     return jsonify({"status": f"Private communication has been {status}"}), 200
+
+# New function to get rooms a user is a member of
+@app.route('/get_user_rooms', methods=['GET'])
+def get_user_rooms():
+    user = request.args.get('user')
+
+    ensure_user_in_general(user)  # Ensure the user is in the general room
+
+    if user:
+        user_rooms = [room for room in room_members if user in room_members[room]]
+        return jsonify({"rooms": user_rooms}), 200
+    else:
+        return jsonify({"status": "User not specified"}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)
