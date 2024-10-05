@@ -35,13 +35,14 @@ room_members[main_room] = []
 private_communication_enabled = True
 
 # Special user (teacher) with extra privileges
-teacher = 'mingli'
+# Central teacher definition (only defined here)
+TEACHER_USERNAME = 'mingli'
 
 # ---- Helper Functions ----
 
 def is_teacher(user):
     """Check if the user is the teacher."""
-    return user == teacher
+    return user == TEACHER_USERNAME
 
 def ensure_user_in_general(user):
     """Ensure a user is in the general room by default."""
@@ -56,6 +57,18 @@ def register_user():
         ensure_user_in_general(username)  # Add user to general room
         return jsonify({"status": f"{username} registered and added to general room."}), 200
     return jsonify({"status": "Missing username."}), 400
+
+# ---- New Endpoint to Check if a User is the Teacher ----
+@app.route('/is_teacher', methods=['GET'])
+def check_is_teacher():
+    username = request.args.get('username')
+    if username:
+        if is_teacher(username):
+            return jsonify({"is_teacher": True}), 200
+        else:
+            return jsonify({"is_teacher": False}), 200
+    return jsonify({"status": "Missing username."}), 400
+
 
 # ---- Flask Endpoints ----
 
@@ -225,6 +238,11 @@ def get_user_rooms():
         return jsonify({"rooms": user_rooms}), 200
     else:
         return jsonify({"status": "User not specified"}), 400
+
+@app.route('/get_all_rooms', methods=['GET'])
+def get_all_rooms():
+    """Get all active rooms, including the general room."""
+    return jsonify({"rooms": list(room_members.keys())}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
