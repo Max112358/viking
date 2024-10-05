@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as Utility from './Utility';  // Import everything as Utility
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([]);
@@ -7,14 +8,14 @@ const ChatInterface = () => {
   const [room, setRoom] = useState('general');
   const [recipient, setRecipient] = useState('');
   const [userRooms, setUserRooms] = useState([]);
+  const [isTeacher, setIsTeacher] = useState(false);  // State to track if the user is a teacher
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
   const messagesEndRef = useRef(null);
-  const lastMessageIdRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
+  };
 
   useEffect(() => {
     if (!username) {
@@ -22,87 +23,54 @@ const ChatInterface = () => {
       return;
     }
 
-    const fetchUserRooms = async () => {
-      try {
-        const response = await fetch(`https://hobefog.pythonanywhere.com/get_user_rooms?user=${encodeURIComponent(username)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setUserRooms(data.rooms);
-        }
-      } catch (error) {
-        console.error('Error fetching user rooms:', error);
-      }
+    const fetchInitialData = async () => {
+      const rooms = await Utility.get_user_rooms(username);
+      setUserRooms(rooms);
+
+      // Fetch messages initially
+      const initialMessages = await Utility.get_messages_for_user(username);
+      setMessages(initialMessages);
+
+      // Check if the user is a teacher
+      const teacherStatus = await Utility.is_teacher(username);
+      setIsTeacher(teacherStatus);
     };
 
-    fetchUserRooms();
-    const interval = setInterval(fetchMessages, 5000);
+    fetchInitialData();
+    const interval = setInterval(() => fetchMessages(username), 5000);
 
     return () => clearInterval(interval);
   }, [username, navigate]);
 
   useEffect(scrollToBottom, [messages]);
 
-  const fetchMessages = async () => {
-    try {
-      const response = await fetch(`https://hobefog.pythonanywhere.com/get_messages_for_user?user=${encodeURIComponent(username)}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.messages.length > 0) {
-          setMessages(prevMessages => {
-            const newMessages = data.messages.filter(msg => {
-              return !prevMessages.some(prevMsg => prevMsg.id === msg.id);
-            });
-            return [...prevMessages, ...newMessages];
-          });
-          if (data.messages.length > 0) {
-            lastMessageIdRef.current = data.messages[data.messages.length - 1].id;
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
+  const fetchMessages = async (username) => {
+    const newMessages = await Utility.get_messages_for_user(username);
+    setMessages(newMessages);
   };
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMessage.trim()) return;
+    if (inputMessage.trim() === '') return;
 
-    try {
-      let url, body;
-      if (recipient) {
-        url = 'https://hobefog.pythonanywhere.com/send_message_to_specific_user';
-        body = `sender=${encodeURIComponent(username)}&recipient=${encodeURIComponent(recipient)}&message=${encodeURIComponent(inputMessage)}`;
-      } else {
-        url = 'https://hobefog.pythonanywhere.com/send_message_to_specific_room';
-        body = `sender=${encodeURIComponent(username)}&room=${encodeURIComponent(room)}&message=${encodeURIComponent(inputMessage)}`;
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: body,
-      });
-
-      if (response.ok) {
-        setInputMessage('');
-        const newMessage = {
-          id: Date.now(),
-          type: recipient ? 'private' : 'room',
-          from: username,
-          room: room,
-          message: inputMessage
-        };
-        setMessages(prevMessages => [...prevMessages, newMessage]);
-      } else {
-        alert('Failed to send message. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('An error occurred. Please try again.');
+    let sendResult;
+    if (recipient) {
+      sendResult = await Utility.send_message_to_specific_user(username, recipient, inputMessage);
+    } else {
+      sendResult = await Utility.send_message_to_specific_room(username, room, inputMessage);
     }
+
+    if (sendResult.success) {
+      setInputMessage('');  // Clear input after sending
+      fetchMessages(username);  // Refresh messages
+    } else {
+      console.error('Message sending failed.');
+    }
+  };
+
+  // Navigate to teacher's dashboard or any other page
+  const handleTeacherClick = () => {
+    navigate('/teacher-dashboard');  // Adjust this route as needed
   };
 
   const containerStyle = {
@@ -184,6 +152,21 @@ const ChatInterface = () => {
           </label>
         </div>
       </div>
+
+      {/* Conditionally render the button if the user is a teacher */}
+      {isTeacher && (
+        <button
+          onClick={handleTeacherClick}
+          style={{
+            ...buttonStyle,
+            marginBottom: '1rem',
+            backgroundColor: '#ff9800', // Different color for special button
+          }}
+        >
+          Go to Teacher's Dashboard
+        </button>
+      )}
+
       <div style={messageWindowStyle}>
         {messages.map((msg, index) => (
           <div key={msg.id || index} style={{ marginBottom: '0.5rem' }}>

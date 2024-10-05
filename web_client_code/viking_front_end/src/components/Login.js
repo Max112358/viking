@@ -1,21 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { checkIfTeacher } from './Utility';
+
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const navigate = useNavigate();
-
-  // Helper function to check if the user is a teacher
-  const checkIfTeacher = async (username) => {
-    try {
-      const response = await fetch(`https://hobefog.pythonanywhere.com/is_teacher?username=${encodeURIComponent(username)}`);
-      const data = await response.json();
-      return data.is_teacher;  // Returns true if user is teacher, otherwise false
-    } catch (error) {
-      console.error("Error checking teacher status:", error);
-      return false;
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,14 +21,7 @@ const Login = () => {
 
       if (response.ok) {
         localStorage.setItem('username', username);
-
-        // Check if the user is the teacher and redirect accordingly
-        const isTeacher = await checkIfTeacher(username);
-        if (isTeacher) {
-          navigate('/teacher');  // Redirect to teacher-specific interface
-        } else {
-          navigate('/chat');  // Redirect to normal chat interface
-        }
+        navigate('/chat');  // Redirect to normal chat interface
       } else {
         alert('Failed to register user. Please try again.');
       }

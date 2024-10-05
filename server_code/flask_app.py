@@ -202,17 +202,21 @@ def close_room():
         return jsonify({"status": "Unauthorized access"}), 403
 
     if room:
+        if room == main_room:  # Prevent closing the general room
+            return jsonify({"status": f"The '{main_room}' room cannot be closed."}), 422  # Using 422 Unprocessable Entity
         if room in room_members:
             # Move all users back to the main room
             for user in room_members[room]:
-                room_members[main_room].append(user)
+                if user not in room_members[main_room]:
+                    room_members[main_room].append(user)
             room_members.pop(room)  # Remove the room
             return jsonify({"status": f"Room {room} closed and users moved to {main_room}"}), 200
         else:
-            return jsonify({"status": f"Room {room} does not exist"}), 400
+            return jsonify({"status": f"Room {room} does not exist"}), 404
     else:
         return jsonify({"status": "Room not specified"}), 400
 
+#change the current status of private chat
 @app.route('/toggle_private_communication', methods=['POST'])
 def toggle_private_communication():
     sender = request.form.get('sender')
@@ -222,11 +226,19 @@ def toggle_private_communication():
 
     global private_communication_enabled
     private_communication_enabled = not private_communication_enabled
-    status = "enabled" if private_communication_enabled else "disabled"
+    status = "disabled" if not private_communication_enabled else "enabled"
 
-    return jsonify({"status": f"Private communication has been {status}"}), 200
+    return jsonify({
+        "status": f"Private communication has been {status}",
+        "isPrivateChatDisabled": not private_communication_enabled
+    }), 200
 
-# New function to get rooms a user is a member of
+#get the current status of private chat
+@app.route('/get_private_chat_status', methods=['GET'])
+def get_private_chat_status():
+    return jsonify({"isPrivateChatDisabled": not private_communication_enabled}), 200
+
+# function to get rooms a user is a member of
 @app.route('/get_user_rooms', methods=['GET'])
 def get_user_rooms():
     user = request.args.get('user')
@@ -239,10 +251,33 @@ def get_user_rooms():
     else:
         return jsonify({"status": "User not specified"}), 400
 
+# function to get every room that exists
 @app.route('/get_all_rooms', methods=['GET'])
 def get_all_rooms():
     """Get all active rooms, including the general room."""
     return jsonify({"rooms": list(room_members.keys())}), 200
+
+
+# New endpoint to create a room
+@app.route('/create_room', methods=['POST'])
+def create_room():
+    room_name = request.form.get('room_name')
+    sender = request.form.get('sender')
+
+    if not is_teacher(sender):
+        return jsonify({"status": "Unauthorized access"}), 403
+
+    if room_name:
+        if room_name in room_members:
+            return jsonify({"status": f"Room '{room_name}' already exists"}), 400
+        else:
+            room_members[room_name] = []  # Create an empty room
+            return jsonify({"status": f"Room '{room_name}' created successfully"}), 200
+    else:
+        return jsonify({"status": "Missing room name"}), 400
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
