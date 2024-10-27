@@ -5,6 +5,7 @@ import { checkIfTeacher } from './Utility';
 
 const Login = () => {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -47,6 +48,17 @@ const Login = () => {
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
           />
+          <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
+            Enter your password:
+          </label>
+          <input
+            type="text"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            required
+          />
         </div>
         <button
           type="submit"
@@ -58,5 +70,7 @@ const Login = () => {
     </div>
   );
 };
+
+
 
 export default Login;

@@ -58,6 +58,12 @@ def register_user():
         return jsonify({"status": f"{username} registered and added to general room."}), 200
     return jsonify({"status": "Missing username."}), 400
 
+    password = request.form.get('password')
+    if password:
+        ensure_user_in_general(password)  # Add user to general room
+        return jsonify({"status": f"{password} registered and added to general room."}), 200
+    return jsonify({"status": "Missing username."}), 400
+
 # ---- New Endpoint to Check if a User is the Teacher ----
 @app.route('/is_teacher', methods=['GET'])
 def check_is_teacher():
