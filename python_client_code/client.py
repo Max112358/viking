@@ -3,6 +3,7 @@ import time
 
 base_url = 'https://hobefog.pythonanywhere.com'
 
+# Delete this comment
 # Function to send a message to all rooms
 def send_message_to_all_rooms(sender, message):
     try:
