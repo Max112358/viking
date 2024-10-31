@@ -4,7 +4,7 @@ import { checkIfTeacher } from './Utility';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Login = ({ theme }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');  // Updated to email
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
@@ -16,11 +16,11 @@ const Login = ({ theme }) => {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `username=${encodeURIComponent(username)}`,
+        body: `email=${encodeURIComponent(email)}`,  // Changed to email
       });
 
       if (response.ok) {
-        localStorage.setItem('username', username);
+        localStorage.setItem('email', email);  // Updated to email
         navigate('/chat');
       } else {
         alert('Failed to register user. Please try again.');
@@ -47,11 +47,11 @@ const Login = ({ theme }) => {
           <div className="mb-3">
             <input
               type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"  // Updated ID
+              value={email}  // Updated to email
+              onChange={(e) => setEmail(e.target.value)}  // Updated to email
               className="form-control"
-              placeholder="Username"
+              placeholder="Email"  // Changed placeholder to Email
               required
             />
           </div>
@@ -71,6 +71,24 @@ const Login = ({ theme }) => {
           <div>
             <button type="submit" className="btn btn-primary w-100">
               Login
+            </button>
+          </div>
+
+          {/* New links for Register and Forgot Password */}
+          <div className="d-flex justify-content-between mt-3">
+            <button
+              type="button"
+              className="btn btn-link p-0"
+              onClick={() => navigate('/register')}
+            >
+              Register an account
+            </button>
+            <button
+              type="button"
+              className="btn btn-link p-0"
+              onClick={() => navigate('/forgot-password')}
+            >
+              Forgot your password?
             </button>
           </div>
         </form>
