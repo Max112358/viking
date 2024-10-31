@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkIfTeacher } from './Utility';
-import styles from './Login.module.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Login = ({ theme }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
-
-  const themeClass = theme === 'dark' ? styles.darkTheme : styles.lightTheme;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,43 +32,44 @@ const Login = ({ theme }) => {
   };
 
   return (
-    <div className={`${styles.loginContainer} ${themeClass}`}>
-      <div className={styles.formContainer}>
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.logoContainer}>
-            <img 
-              src={`${process.env.PUBLIC_URL}/logo_vector.svg`}
+    <div className={`d-flex justify-content-center align-items-start min-vh-100 p-4 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
+      <div className="w-100" style={{ maxWidth: '500px' }}>
+        <form onSubmit={handleSubmit} className="p-4 shadow rounded">
+          <div className="text-center mb-4">
+            <img
+              src={`${process.env.PUBLIC_URL}/viking_logo_vector_with_text_white2.svg`}
               alt="Viking Logo"
-              className={styles.logo}
+              style={{ height: '160px', maxWidth: '400px' }}
+              className="img-fluid"
             />
           </div>
-          
-          <div className={styles.inputGroup}>
+
+          <div className="mb-3">
             <input
               type="text"
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className={styles.input}
+              className="form-control"
               placeholder="Username"
               required
             />
           </div>
 
-          <div className={styles.inputGroup}>
+          <div className="mb-3">
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={styles.input}
+              className="form-control"
               placeholder="Password"
               required
             />
           </div>
 
-          <div className={styles.buttonContainer}>
-            <button type="submit" className={styles.button}>
+          <div>
+            <button type="submit" className="btn btn-primary w-100">
               Login
             </button>
           </div>
