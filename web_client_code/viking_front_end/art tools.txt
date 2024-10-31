@@ -1,0 +1,5 @@
+images are made using photopea. font for logo is baumans
+
+image generated with leonardo.
+
+conversion to vector is done with https://www.vectorizer.io/
