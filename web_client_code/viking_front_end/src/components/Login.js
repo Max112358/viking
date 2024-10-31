@@ -37,7 +37,7 @@ const Login = ({ theme }) => {
         <form onSubmit={handleSubmit} className="p-4 shadow rounded">
           <div className="text-center mb-4">
             <img
-              src={`${process.env.PUBLIC_URL}/viking_logo_vector_with_text_white2.svg`}
+              src={`${process.env.PUBLIC_URL}/viking_logo_vector_with_text_white3.svg`}
               alt="Viking Logo"
               style={{ height: '160px', maxWidth: '400px' }}
               className="img-fluid"
