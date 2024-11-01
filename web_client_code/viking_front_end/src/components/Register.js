@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { API_BASE_URL } from '../config';
 
 const Register = ({ theme }) => {
   const [email, setEmail] = useState('');
@@ -10,14 +11,12 @@ const Register = ({ theme }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (password !== confirmPassword) {
       alert('Passwords do not match');
       return;
     }
-
     try {
-      const response = await fetch('https://hobefog.pythonanywhere.com/register_user', {
+      const response = await fetch(`${API_BASE_URL}/register_user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

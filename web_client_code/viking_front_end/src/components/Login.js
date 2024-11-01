@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkIfTeacher } from './Utility';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { API_BASE_URL } from '../config';
+
 
 const Login = ({ theme }) => {
   const [email, setEmail] = useState('');  // Updated to email
@@ -11,12 +13,12 @@ const Login = ({ theme }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('https://hobefog.pythonanywhere.com/register_user', {
+      const response = await fetch(`${API_BASE_URL}/register_user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `email=${encodeURIComponent(email)}`,  // Changed to email
+        body: `email=${encodeURIComponent(email)}`,
       });
 
       if (response.ok) {

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { API_BASE_URL } from '../config';
+
 
 const ForgotPassword = ({ theme }) => {
   const [email, setEmail] = useState('');
@@ -13,7 +15,7 @@ const ForgotPassword = ({ theme }) => {
   const handleRequestReset = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('https://hobefog.pythonanywhere.com/request_password_reset', {
+      const response = await fetch(`${API_BASE_URL}/request_password_reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -35,14 +37,12 @@ const ForgotPassword = ({ theme }) => {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    
     if (newPassword !== confirmPassword) {
       alert('Passwords do not match');
       return;
     }
-
     try {
-      const response = await fetch('https://hobefog.pythonanywhere.com/reset_password', {
+      const response = await fetch(`${API_BASE_URL}/reset_password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
