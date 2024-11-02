@@ -1,35 +1,39 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { checkIfTeacher } from './Utility';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { API_BASE_URL } from '../config';
 
-
 const Login = ({ theme }) => {
-  const [email, setEmail] = useState('');  // Updated to email
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
     try {
-      const response = await fetch(`${API_BASE_URL}/register_user`, {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: `email=${encodeURIComponent(email)}`,
+        body: JSON.stringify({ email, password }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        localStorage.setItem('email', email);  // Updated to email
+        // Store user email or token
+        localStorage.setItem('userEmail', email);
         navigate('/chat');
       } else {
-        alert('Failed to register user. Please try again.');
+        setError(data.message || 'Login failed');
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('An error occurred. Please try again.');
+      console.error('Login error:', error);
+      setError('An error occurred. Please try again.');
     }
   };
 
@@ -46,14 +50,16 @@ const Login = ({ theme }) => {
             />
           </div>
 
+          {error && <div className="alert alert-danger">{error}</div>}
+
           <div className="mb-3">
             <input
-              type="text"
-              id="email"  // Updated ID
-              value={email}  // Updated to email
-              onChange={(e) => setEmail(e.target.value)}  // Updated to email
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="form-control"
-              placeholder="Email"  // Changed placeholder to Email
+              placeholder="Email"
               required
             />
           </div>
@@ -76,7 +82,6 @@ const Login = ({ theme }) => {
             </button>
           </div>
 
-          {/* New links for Register and Forgot Password */}
           <div className="d-flex justify-content-between mt-3">
             <button
               type="button"

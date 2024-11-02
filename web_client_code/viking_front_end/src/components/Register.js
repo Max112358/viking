@@ -7,32 +7,45 @@ const Register = ({ theme }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
+    // Basic password validation
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
+
+    // Password strength check
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/register_user`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: `email=${encodeURIComponent(email)}`,
+        body: JSON.stringify({ email, password }),
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         alert('Registration successful! Please login.');
         navigate('/login');
       } else {
-        alert('Failed to register user. Please try again.');
+        setError(data.message || 'Registration failed');
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('An error occurred. Please try again.');
+      console.error('Registration error:', error);
+      setError('An error occurred. Please try again.');
     }
   };
 
@@ -48,6 +61,8 @@ const Register = ({ theme }) => {
               className="img-fluid"
             />
           </div>
+
+          {error && <div className="alert alert-danger">{error}</div>}
 
           <div className="mb-3">
             <input
