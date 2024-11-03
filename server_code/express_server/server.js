@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const db = require('./db'); // Import the database utility
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
