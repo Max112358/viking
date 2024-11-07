@@ -4,7 +4,6 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ChatInterface from './components/ChatInterface';
-import TeacherInterface from './components/TeacherInterface';
 import styles from './App.module.css';
 
 function App() {
@@ -34,7 +33,6 @@ function App() {
             <Route path="/chat" element={<ChatInterface theme={theme} />} />
             <Route path="/forgot-password" element={<ForgotPassword theme={theme} />} />
             <Route path="/register" element={<Register theme={theme} />} />
-            <Route path="/teacher-dashboard" element={<TeacherInterface theme={theme} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>

@@ -9,10 +9,11 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
-// Function to create users table if it doesn't exist
+// Function to create all necessary tables if they don't exist
 async function initializeDatabase() {
   const client = await pool.connect();
   try {
+    // Create users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -22,8 +23,30 @@ async function initializeDatabase() {
       )
     `);
     console.log('Users table ensured');
+
+    // Create rooms table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Rooms table ensured');
+
+    // Create room_members junction table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS room_members (
+        room_id INTEGER REFERENCES rooms(id),
+        user_id INTEGER REFERENCES users(id),
+        joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (room_id, user_id)
+      )
+    `);
+    console.log('Room members table ensured');
+
   } catch (err) {
-    console.error('Error creating users table', err);
+    console.error('Error initializing database tables:', err);
   } finally {
     client.release();
   }
