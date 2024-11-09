@@ -4,6 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const db = require('./db');
 require('dotenv').config();
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
 const PORT = 3000;
@@ -15,6 +17,35 @@ app.use(bodyParser.json());
 
 // Initialize database on server start
 db.initializeDatabase();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: './public/uploads/',
+  filename: function(req, file, cb) {
+    cb(null, 'room-' + Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5000000 }, // 5MB limit
+  fileFilter: function(req, file, cb) {
+    checkFileType(file, cb);
+  }
+});
+
+// Check file type
+function checkFileType(file, cb) {
+  const filetypes = /jpeg|jpg|png|gif/;
+  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = filetypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb('Error: Images Only!');
+  }
+}
 
 // Registration Endpoint
 app.post('/register_user', async (req, res) => {
@@ -79,28 +110,45 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// New endpoint: Create a room
-app.post('/rooms', async (req, res) => {
-  const { name, description } = req.body;
-  const userId = req.body.userId; // You'll need to implement proper authentication
+// Update the rooms endpoint to handle file upload
+app.post('/rooms', upload.single('thumbnail'), async (req, res) => {
+  const { name, description, userId } = req.body;
+  const thumbnailUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
   try {
-    const result = await db.query(
-      'INSERT INTO rooms (name, description) VALUES ($1, $2) RETURNING room_id',
-      [name, description]
-    );
+    const client = await db.pool.connect();
     
-    // Automatically add the creator as a member
-    const roomId = result.rows[0].room_id;
-    await db.query(
-      'INSERT INTO room_members (room_id, user_id) VALUES ($1, $2)',
-      [roomId, userId]
-    );
+    try {
+      // Begin transaction
+      await client.query('BEGIN');
 
-    res.status(201).json({ 
-      message: 'Room created successfully', 
-      roomId: roomId 
-    });
+      // Create the room
+      const roomResult = await client.query(
+        'INSERT INTO rooms (name, description, thumbnail_url) VALUES ($1, $2, $3) RETURNING id',
+        [name, description, thumbnailUrl]
+      );
+      
+      const roomId = roomResult.rows[0].id;
+
+      // Add creator as admin member
+      await client.query(
+        'INSERT INTO room_members (room_id, user_id, is_admin) VALUES ($1, $2, $3)',
+        [roomId, userId, true]
+      );
+
+      // Commit transaction
+      await client.query('COMMIT');
+
+      res.status(201).json({ 
+        message: 'Room created successfully', 
+        roomId: roomId 
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error creating room:', error);
     res.status(500).json({ message: 'Error creating room' });
@@ -113,9 +161,9 @@ app.get('/users/:userId/rooms', async (req, res) => {
 
   try {
     const userRooms = await db.query(`
-      SELECT r.room_id, r.name, r.description, r.created_at, rm.joined_at
+      SELECT r.id as room_id, r.name, r.created_at, rm.joined_at
       FROM rooms r
-      INNER JOIN room_members rm ON r.room_id = rm.room_id
+      INNER JOIN room_members rm ON r.id = rm.room_id
       WHERE rm.user_id = $1
       ORDER BY rm.joined_at DESC
     `, [userId]);

@@ -46,6 +46,10 @@ const ChatInterface = ({ theme }) => {
     }
   };
 
+  const handleCreateRoom = () => {
+    navigate('/create-room'); // Navigate to the create room page
+  };
+
   return (
     <div className={`h-screen w-full flex ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
       {/* Mobile Toggle Button */}
@@ -54,7 +58,6 @@ const ChatInterface = ({ theme }) => {
           onClick={() => setShowSidebar(!showSidebar)}
           className="fixed top-4 left-4 z-50"
         >
-          {/* Bootstrap icon instead of Lucide */}
           <i className="bi bi-list fs-4"></i>
         </button>
       )}
@@ -88,6 +91,19 @@ const ChatInterface = ({ theme }) => {
               {room.name.charAt(0).toUpperCase()}
             </button>
           ))}
+          
+          {/* Create Room Button */}
+          <button
+            onClick={handleCreateRoom}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+              theme === 'dark'
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-green-500 text-white hover:bg-green-600'
+            }`}
+            title="Create New Room"
+          >
+            +
+          </button>
         </div>
       </div>
 

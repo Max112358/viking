@@ -18,3 +18,7 @@ html, body {
   display: flex;
   flex-direction: column;
 }
+
+.bg-mid-dark {
+  background-color: #272C30 !important;
+}

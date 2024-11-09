@@ -24,21 +24,24 @@ async function initializeDatabase() {
     `);
     console.log('Users table ensured');
 
-    // Create rooms table
+    // Create rooms table with all needed columns
     await client.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
+        description TEXT,
+        thumbnail_url VARCHAR(255),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('Rooms table ensured');
 
-    // Create room_members junction table
+    // Create room_members junction table with admin status
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_members (
         room_id INTEGER REFERENCES rooms(id),
         user_id INTEGER REFERENCES users(id),
+        is_admin BOOLEAN DEFAULT FALSE,
         joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (room_id, user_id)
       )
