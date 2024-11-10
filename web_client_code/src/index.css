@@ -22,3 +22,8 @@ html, body {
 .bg-mid-dark {
   background-color: #272C30 !important;
 }
+
+#root > .chat-interface {
+  text-align: left;
+  display: table-row !important;
+}

@@ -47,11 +47,12 @@ const ChatInterface = ({ theme }) => {
   };
 
   const handleCreateRoom = () => {
-    navigate('/create-room'); // Navigate to the create room page
+    navigate('/create-room');
   };
 
+
   return (
-    <div className={`h-screen w-full flex ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+    <div className={`chat-interface h-screen w-full flex justify-start ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
       {/* Mobile Toggle Button */}
       {isMobile && (
         <button
@@ -62,17 +63,18 @@ const ChatInterface = ({ theme }) => {
         </button>
       )}
 
-      {/* Rooms Sidebar */}
+      {/* Rooms Sidebar - Changed to left-0 and modified inner container */}
       <div 
         className={`${
           showSidebar ? 'translate-x-0' : '-translate-x-full'
-        } transform transition-transform duration-300 fixed md:relative md:translate-x-0 h-full w-20 flex-shrink-0 ${
+        } transform transition-transform duration-300 fixed left-0 top-0 h-full w-20 flex-shrink-0 ${
           theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'
         } border-r ${
           theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
         } overflow-y-auto z-40`}
       >
-        <div className="flex flex-col items-center py-4 space-y-4">
+        {/* Modified this div to ensure vertical layout */}
+        <div className="flex flex-col p-4 space-y-4">
           {rooms.map((room) => (
             <button
               key={room.room_id}
@@ -108,21 +110,19 @@ const ChatInterface = ({ theme }) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 h-full overflow-hidden">
+      <div className="flex-1 h-full overflow-hidden ml-20">
         {selectedRoom ? (
           <div className="h-full p-4">
             <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               {selectedRoom.name}
             </h2>
-            {/* Chat interface will go here */}
             <div className={`h-full rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
-              {/* Placeholder for chat component */}
               <div className="p-4">Chat messages will appear here</div>
             </div>
           </div>
         ) : (
           <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">Select a room to start chatting</p>
+            <p className="text-gray-800">Select a room to start chatting</p>
           </div>
         )}
       </div>

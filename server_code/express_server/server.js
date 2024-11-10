@@ -110,45 +110,30 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Update the rooms endpoint to handle file upload
+// Create room endpoint
 app.post('/rooms', upload.single('thumbnail'), async (req, res) => {
   const { name, description, userId } = req.body;
   const thumbnailUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
   try {
-    const client = await db.pool.connect();
+    // Create the room
+    const roomResult = await db.query(
+      'INSERT INTO rooms (name, description, thumbnail_url) VALUES ($1, $2, $3) RETURNING id',
+      [name, description, thumbnailUrl]
+    );
     
-    try {
-      // Begin transaction
-      await client.query('BEGIN');
+    const roomId = roomResult.rows[0].id;
 
-      // Create the room
-      const roomResult = await client.query(
-        'INSERT INTO rooms (name, description, thumbnail_url) VALUES ($1, $2, $3) RETURNING id',
-        [name, description, thumbnailUrl]
-      );
-      
-      const roomId = roomResult.rows[0].id;
+    // Add creator as admin member
+    await db.query(
+      'INSERT INTO room_members (room_id, user_id, is_admin) VALUES ($1, $2, $3)',
+      [roomId, userId, true]
+    );
 
-      // Add creator as admin member
-      await client.query(
-        'INSERT INTO room_members (room_id, user_id, is_admin) VALUES ($1, $2, $3)',
-        [roomId, userId, true]
-      );
-
-      // Commit transaction
-      await client.query('COMMIT');
-
-      res.status(201).json({ 
-        message: 'Room created successfully', 
-        roomId: roomId 
-      });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    res.status(201).json({ 
+      message: 'Room created successfully', 
+      roomId: roomId 
+    });
   } catch (error) {
     console.error('Error creating room:', error);
     res.status(500).json({ message: 'Error creating room' });
