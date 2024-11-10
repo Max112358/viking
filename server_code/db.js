@@ -9,6 +9,22 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
+// Helper function to handle transactions
+async function transaction(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // Function to create all necessary tables if they don't exist
 async function initializeDatabase() {
   const client = await pool.connect();
@@ -57,5 +73,6 @@ async function initializeDatabase() {
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
+  transaction,
   initializeDatabase,
 };

@@ -1,12 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+
+// Custom context menu component
+const ContextMenu = ({ x, y, onClose, children }) => (
+  <div 
+    className="position-fixed bg-white shadow-sm rounded border"
+    style={{ 
+      left: x, 
+      top: y, 
+      zIndex: 1050,
+      minWidth: '150px'
+    }}
+  >
+    {children}
+  </div>
+);
 
 const ChatInterface = ({ theme }) => {
   const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [contextMenu, setContextMenu] = useState(null);
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail');
 
@@ -16,28 +32,35 @@ const ChatInterface = ({ theme }) => {
       return;
     }
 
-    const fetchRooms = async () => {
-      try {
-        const userId = '1'; // You'll need to implement proper user ID storage
-        const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`);
-        const data = await response.json();
-        console.log('Fetched rooms data:', data.rooms); // Add this line
-        setRooms(data.rooms || []);
-      } catch (error) {
-        console.error('Error fetching rooms:', error);
-      }
-    };
-
     fetchRooms();
   }, [userEmail, navigate]);
+
+  const fetchRooms = async () => {
+    try {
+      const userId = '1'; // Replace with actual user ID
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`);
+      const data = await response.json();
+      setRooms(data.rooms || []);
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
 
+    const handleClickOutside = () => {
+      setContextMenu(null);
+    };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('click', handleClickOutside);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('click', handleClickOutside);
+    };
   }, []);
 
   const handleRoomSelect = (room) => {
@@ -47,24 +70,50 @@ const ChatInterface = ({ theme }) => {
     }
   };
 
-  const handleCreateRoom = () => {
-    navigate('/create-room');
+  const handleContextMenu = useCallback((e, room) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.pageX,
+      y: e.pageY,
+      room: room
+    });
+  }, []);
+
+  const handleLeaveRoom = async (roomId) => {
+    try {
+      const userId = '1'; // Replace with actual user ID
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/leave`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        // If we were viewing this room, clear the selection
+        if (selectedRoom?.room_id === roomId) {
+          setSelectedRoom(null);
+        }
+        // Refresh the rooms list
+        fetchRooms();
+      }
+    } catch (error) {
+      console.error('Error leaving room:', error);
+    } finally {
+      setContextMenu(null);
+    }
   };
 
-  // Helper function to handle room display (thumbnail or letter)
   const getRoomDisplay = (room) => {
-    console.log('Room data:', room); // Add this line
-    console.log('Thumbnail URL:', room.thumbnail_url); // Add this line
     if (room.thumbnail_url) {
       const fullUrl = `${API_BASE_URL}${room.thumbnail_url}`;
-      console.log('Full image URL:', fullUrl); // Add this line
       return (
         <img 
           src={fullUrl}
           alt={room.name}
           className="w-100 h-100 rounded-circle object-fit-cover"
           onError={(e) => {
-            console.log('Image failed to load'); // Add this line
             e.target.onerror = null;
             e.target.style.display = 'none';
             e.target.parentElement.textContent = room.name.charAt(0).toUpperCase();
@@ -73,6 +122,10 @@ const ChatInterface = ({ theme }) => {
       );
     }
     return room.name.charAt(0).toUpperCase();
+  };
+
+  const handleCreateRoom = () => {
+    navigate('/create-room');
   };
 
   const sidebarClasses = `
@@ -96,8 +149,7 @@ const ChatInterface = ({ theme }) => {
     : 'btn-primary';
 
   return (
-    <div className={`vh-100 d-flex ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
-      {/* Mobile Toggle Button */}
+    <div className={`vh-100 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {isMobile && (
         <button
           onClick={() => setShowSidebar(!showSidebar)}
@@ -114,6 +166,7 @@ const ChatInterface = ({ theme }) => {
             <button
               key={room.room_id}
               onClick={() => handleRoomSelect(room)}
+              onContextMenu={(e) => handleContextMenu(e, room)}
               className={`
                 btn 
                 rounded-circle 
@@ -131,7 +184,6 @@ const ChatInterface = ({ theme }) => {
             </button>
           ))}
           
-          {/* Create Room Button */}
           <button
             onClick={handleCreateRoom}
             className="btn btn-success rounded-circle d-flex align-items-center justify-content-center"
@@ -143,8 +195,28 @@ const ChatInterface = ({ theme }) => {
         </div>
       </div>
 
+      {/* Context Menu */}
+      {contextMenu && (
+        <ContextMenu x={contextMenu.x} y={contextMenu.y}>
+          <div className="py-2">
+            <button
+              className="btn btn-link text-danger w-100 text-start px-3"
+              onClick={() => handleLeaveRoom(contextMenu.room.room_id)}
+            >
+              Leave Room
+            </button>
+          </div>
+        </ContextMenu>
+      )}
+
       {/* Main Content Area */}
-      <div className="flex-grow-1 h-100 overflow-hidden ms-5" style={{ marginLeft: '80px' }}>
+      <div 
+        className="h-100 overflow-hidden"
+        style={{ 
+          marginLeft: showSidebar ? '80px' : '0',
+          transition: 'margin-left 0.3s ease-in-out'
+        }}
+      >
         {selectedRoom ? (
           <div className="h-100 p-3">
             <h2 className={`fs-4 fw-bold mb-3 ${theme === 'dark' ? 'text-light' : 'text-dark'}`}>

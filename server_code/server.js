@@ -6,6 +6,7 @@ const db = require('./db');
 require('dotenv').config();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 
 const app = express();
@@ -191,21 +192,96 @@ app.post('/rooms/:roomId/join', async (req, res) => {
   }
 });
 
-// New endpoint: Leave a room
+// Room management functions
+async function destroyRoom(transaction, roomId) {
+  try {
+    // Get room thumbnail URL before deleting
+    const roomData = await transaction.query(
+      'SELECT thumbnail_url FROM rooms WHERE id = $1',
+      [roomId]
+    );
+    
+    // Delete all room members
+    await transaction.query('DELETE FROM room_members WHERE room_id = $1', [roomId]);
+    
+    // Delete the room itself
+    await transaction.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+
+    // If there was a thumbnail, delete the file
+    if (roomData.rows[0]?.thumbnail_url) {
+      const thumbnailPath = path.join(__dirname, 'public', roomData.rows[0].thumbnail_url);
+      fs.unlink(thumbnailPath, (err) => {
+        if (err) console.error('Error deleting thumbnail:', err);
+      });
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error destroying room:', error);
+    throw error;
+  }
+}
+
+// Updated leave room endpoint
 app.post('/rooms/:roomId/leave', async (req, res) => {
   const { roomId } = req.params;
   const userId = req.body.userId;
-
+  
   try {
-    await db.query(
-      'DELETE FROM room_members WHERE room_id = $1 AND user_id = $2',
-      [roomId, userId]
-    );
+    await db.transaction(async (client) => {
+      // Remove the user from the room
+      await client.query(
+        'DELETE FROM room_members WHERE room_id = $1 AND user_id = $2',
+        [roomId, userId]
+      );
+
+      // Check if there are any members left in the room
+      const remainingMembers = await client.query(
+        'SELECT COUNT(*) FROM room_members WHERE room_id = $1',
+        [roomId]
+      );
+
+      // If no members remain, destroy the room
+      if (parseInt(remainingMembers.rows[0].count) === 0) {
+        await destroyRoom(client, roomId);
+      }
+    });
 
     res.status(200).json({ message: 'Successfully left room' });
   } catch (error) {
     console.error('Error leaving room:', error);
     res.status(500).json({ message: 'Error leaving room' });
+  }
+});
+
+// Admin delete room endpoint
+app.delete('/rooms/:roomId', async (req, res) => {
+  const { roomId } = req.params;
+  const userId = req.body.userId;
+
+  try {
+    await db.transaction(async (client) => {
+      // Check if user is room admin
+      const isAdmin = await client.query(
+        'SELECT is_admin FROM room_members WHERE room_id = $1 AND user_id = $2 AND is_admin = true',
+        [roomId, userId]
+      );
+
+      if (isAdmin.rows.length === 0) {
+        throw new Error('Not authorized to delete room');
+      }
+
+      await destroyRoom(client, roomId);
+    });
+    
+    res.status(200).json({ message: 'Room successfully deleted' });
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    if (error.message === 'Not authorized to delete room') {
+      res.status(403).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: 'Error deleting room' });
+    }
   }
 });
 
