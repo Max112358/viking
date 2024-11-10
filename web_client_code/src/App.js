@@ -5,7 +5,7 @@ import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ChatInterface from './components/ChatInterface';
 import CreateRoom from './components/CreateRoom';
-import styles from './App.module.css';
+import './colors.css';
 
 function App() {
   const [theme, setTheme] = useState(
@@ -23,11 +23,9 @@ function App() {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  const themeClass = theme === 'dark' ? styles.darkTheme : styles.lightTheme;
-
   return (
-    <div className={styles.root}>
-      <div className={`${styles.app} ${themeClass}`}>
+    <div className="min-vh-100">
+      <div className={`min-vh-100 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
         <Router>
           <Routes>
             <Route path="/" element={<Login theme={theme} />} />

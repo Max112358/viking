@@ -50,70 +50,72 @@ const Register = ({ theme }) => {
   };
 
   return (
-    <div className={`d-flex justify-content-center align-items-start min-vh-100 p-4 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
+    <div className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
       <div className="w-100" style={{ maxWidth: '500px' }}>
-        <form onSubmit={handleSubmit} className="p-4 shadow rounded">
-          <div className="text-center mb-4">
-            <img
-              src={`${process.env.PUBLIC_URL}/viking_logo_vector_with_text_white3.svg`}
-              alt="Viking Logo"
-              style={{ height: '160px', maxWidth: '400px' }}
-              className="img-fluid"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
+          <div className="card-body p-2">
+            <div className="text-center mb-3">
+              <img
+                src={`${process.env.PUBLIC_URL}/viking_logo_vector_with_text_white3.svg`}
+                alt="Viking Logo"
+                style={{ height: '140px', maxWidth: '400px' }}
+                className="img-fluid"
+              />
+            </div>
 
-          {error && <div className="alert alert-danger">{error}</div>}
+            {error && <div className="alert alert-danger py-2 mb-2">{error}</div>}
 
-          <div className="mb-3">
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="form-control"
-              placeholder="Email"
-              required
-            />
-          </div>
+            <div className="mb-2">
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="form-control"
+                placeholder="Email"
+                required
+              />
+            </div>
 
-          <div className="mb-3">
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="form-control"
-              placeholder="Password"
-              required
-            />
-          </div>
+            <div className="mb-2">
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="form-control"
+                placeholder="Password"
+                required
+              />
+            </div>
 
-          <div className="mb-3">
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="form-control"
-              placeholder="Confirm Password"
-              required
-            />
-          </div>
+            <div className="mb-2">
+              <input
+                type="password"
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="form-control"
+                placeholder="Confirm Password"
+                required
+              />
+            </div>
 
-          <div>
-            <button type="submit" className="btn btn-primary w-100">
-              Register
-            </button>
-          </div>
+            <div>
+              <button type="submit" className="btn btn-primary w-100">
+                Register
+              </button>
+            </div>
 
-          <div className="text-center mt-3">
-            <button
-              type="button"
-              className="btn btn-link p-0"
-              onClick={() => navigate('/login')}
-            >
-              Already have an account? Login
-            </button>
+            <div className="text-center mt-2">
+              <button
+                type="button"
+                className="btn btn-link p-0"
+                onClick={() => navigate('/login')}
+              >
+                Already have an account? Login
+              </button>
+            </div>
           </div>
         </form>
       </div>

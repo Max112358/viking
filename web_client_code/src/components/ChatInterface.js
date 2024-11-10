@@ -21,6 +21,7 @@ const ChatInterface = ({ theme }) => {
         const userId = '1'; // You'll need to implement proper user ID storage
         const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`);
         const data = await response.json();
+        console.log('Fetched rooms data:', data.rooms); // Add this line
         setRooms(data.rooms || []);
       } catch (error) {
         console.error('Error fetching rooms:', error);
@@ -50,58 +51,91 @@ const ChatInterface = ({ theme }) => {
     navigate('/create-room');
   };
 
+  // Helper function to handle room display (thumbnail or letter)
+  const getRoomDisplay = (room) => {
+    console.log('Room data:', room); // Add this line
+    console.log('Thumbnail URL:', room.thumbnail_url); // Add this line
+    if (room.thumbnail_url) {
+      const fullUrl = `${API_BASE_URL}${room.thumbnail_url}`;
+      console.log('Full image URL:', fullUrl); // Add this line
+      return (
+        <img 
+          src={fullUrl}
+          alt={room.name}
+          className="w-100 h-100 rounded-circle object-fit-cover"
+          onError={(e) => {
+            console.log('Image failed to load'); // Add this line
+            e.target.onerror = null;
+            e.target.style.display = 'none';
+            e.target.parentElement.textContent = room.name.charAt(0).toUpperCase();
+          }}
+        />
+      );
+    }
+    return room.name.charAt(0).toUpperCase();
+  };
+
+  const sidebarClasses = `
+    sidebar 
+    position-fixed 
+    start-0 
+    top-0 
+    h-100 
+    ${showSidebar ? '' : 'sidebar-hidden'}
+    ${theme === 'dark' ? 'bg-dark' : 'bg-light'}
+    border-end
+    ${theme === 'dark' ? 'border-secondary' : 'border-light'}
+  `.trim();
+
+  const buttonThemeClasses = theme === 'dark' 
+    ? 'btn-outline-light' 
+    : 'btn-outline-dark';
+
+  const selectedButtonClasses = theme === 'dark'
+    ? 'btn-primary'
+    : 'btn-primary';
 
   return (
-    <div className={`chat-interface h-screen w-full flex justify-start ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+    <div className={`vh-100 d-flex ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {/* Mobile Toggle Button */}
       {isMobile && (
         <button
           onClick={() => setShowSidebar(!showSidebar)}
-          className="fixed top-4 left-4 z-50"
+          className="btn position-fixed top-0 start-0 m-3 z-3"
         >
           <i className="bi bi-list fs-4"></i>
         </button>
       )}
 
-      {/* Rooms Sidebar - Changed to left-0 and modified inner container */}
-      <div 
-        className={`${
-          showSidebar ? 'translate-x-0' : '-translate-x-full'
-        } transform transition-transform duration-300 fixed left-0 top-0 h-full w-20 flex-shrink-0 ${
-          theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'
-        } border-r ${
-          theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-        } overflow-y-auto z-40`}
-      >
-        {/* Modified this div to ensure vertical layout */}
-        <div className="flex flex-col p-4 space-y-4">
+      {/* Rooms Sidebar */}
+      <div className={sidebarClasses} style={{ width: '80px', zIndex: 2 }}>
+        <div className="d-flex flex-column p-3 gap-3">
           {rooms.map((room) => (
             <button
               key={room.room_id}
               onClick={() => handleRoomSelect(room)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                selectedRoom?.room_id === room.room_id
-                  ? theme === 'dark'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-500 text-white'
-                  : theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              className={`
+                btn 
+                rounded-circle 
+                d-flex 
+                align-items-center 
+                justify-content-center
+                p-0
+                overflow-hidden
+                ${selectedRoom?.room_id === room.room_id ? selectedButtonClasses : buttonThemeClasses}
+              `}
+              style={{ width: '48px', height: '48px' }}
               title={room.name}
             >
-              {room.name.charAt(0).toUpperCase()}
+              {getRoomDisplay(room)}
             </button>
           ))}
           
           {/* Create Room Button */}
           <button
             onClick={handleCreateRoom}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-              theme === 'dark'
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-green-500 text-white hover:bg-green-600'
-            }`}
+            className="btn btn-success rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: '48px', height: '48px' }}
             title="Create New Room"
           >
             +
@@ -110,22 +144,42 @@ const ChatInterface = ({ theme }) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 h-full overflow-hidden ml-20">
+      <div className="flex-grow-1 h-100 overflow-hidden ms-5" style={{ marginLeft: '80px' }}>
         {selectedRoom ? (
-          <div className="h-full p-4">
-            <h2 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          <div className="h-100 p-3">
+            <h2 className={`fs-4 fw-bold mb-3 ${theme === 'dark' ? 'text-light' : 'text-dark'}`}>
               {selectedRoom.name}
             </h2>
-            <div className={`h-full rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
-              <div className="p-4">Chat messages will appear here</div>
+            <div className={`h-100 rounded ${theme === 'dark' ? 'bg-secondary' : 'bg-light'}`}>
+              <div className="p-3">Chat messages will appear here</div>
             </div>
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-800">Select a room to start chatting</p>
+          <div className="h-100 d-flex align-items-center justify-content-center">
+            <p className={theme === 'dark' ? 'text-light' : 'text-dark'}>
+              Select a room to start chatting
+            </p>
           </div>
         )}
       </div>
+
+      <style>
+        {`
+          .sidebar {
+            transition: transform 0.3s ease-in-out;
+          }
+          
+          .sidebar-hidden {
+            transform: translateX(-100%);
+          }
+          
+          @media (max-width: 768px) {
+            .sidebar {
+              z-index: 1030;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };
