@@ -6,6 +6,8 @@ import ForgotPassword from './components/ForgotPassword';
 import ChatInterface from './components/ChatInterface';
 import CreateRoom from './components/CreateRoom';
 import './colors.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+
 
 function App() {
   const [theme, setTheme] = useState(

@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+//this pool is used with wrapper functions, NOT direct export!
 const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -55,8 +56,8 @@ async function initializeDatabase() {
     // Create room_members junction table with admin status
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_members (
-        room_id INTEGER REFERENCES rooms(id),
-        user_id INTEGER REFERENCES users(id),
+        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         is_admin BOOLEAN DEFAULT FALSE,
         joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (room_id, user_id)
@@ -64,8 +65,36 @@ async function initializeDatabase() {
     `);
     console.log('Room members table ensured');
 
+    // Create threads table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS threads (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        subject VARCHAR(255) NOT NULL,
+        author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        is_pinned BOOLEAN DEFAULT FALSE,
+        last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Threads table ensured');
+
+    // Create posts table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS posts (
+        id SERIAL PRIMARY KEY,
+        thread_id INTEGER REFERENCES threads(id) ON DELETE CASCADE,
+        author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Posts table ensured');
+
   } catch (err) {
     console.error('Error initializing database tables:', err);
+    throw err;
   } finally {
     client.release();
   }

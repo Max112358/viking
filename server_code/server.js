@@ -39,12 +39,20 @@ app.listen(PORT, () => {
 });
 
 
+//basic outline for how this chat website works
+/*
+Rooms are created and controlled by users. Whoever creates the room becomes its admin, but can promote other sub-admins.
+Rooms contain threads. Any user can make threads within a room. A thread has a subject which is supposed to be the threads theme or reason for existing.
+Threads contain posts. Any user can make a post within a thread. A post contains a message.
+*/
+
 //app file structure DO NOT DELETE THIS
 /*
 project/
   ├── controllers/
   ├─────authController.js
   ├─────roomController.js
+  ├─────threadController.js
   ├── middleware/
   ├─────fileUpload.js
   ├── routes/
