@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-
 const CreateRoom = ({ theme }) => {
   const [roomName, setRoomName] = useState('');
   const [description, setDescription] = useState('');
@@ -37,13 +36,13 @@ const CreateRoom = ({ theme }) => {
       if (thumbnailImage) {
         formData.append('thumbnail', thumbnailImage);
       }
-      
+
       const userId = '1'; // Replace with actual user ID from authentication
       formData.append('userId', userId);
 
       const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       const data = await response.json();
@@ -62,19 +61,29 @@ const CreateRoom = ({ theme }) => {
   };
 
   return (
-    <div className={`min-vh-100 py-5 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
+    <div
+      className={`min-vh-100 py-5 ${
+        theme === 'dark' ? 'bg-dark text-light' : 'bg-light'
+      }`}
+    >
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-md-8 col-lg-6">
-            <div className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
+            <div
+              className={`card ${
+                theme === 'dark' ? 'bg-mid-dark text-light' : ''
+              }`}
+            >
               <div className="card-body">
                 <h2 className="card-title text-center mb-4">Create New Room</h2>
-                
+
                 {error && <div className="alert alert-danger">{error}</div>}
-                
+
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
-                    <label htmlFor="roomName" className="form-label">Room Name</label>
+                    <label htmlFor="roomName" className="form-label">
+                      Room Name
+                    </label>
                     <input
                       type="text"
                       className="form-control"
@@ -87,7 +96,9 @@ const CreateRoom = ({ theme }) => {
                   </div>
 
                   <div className="mb-3">
-                    <label htmlFor="description" className="form-label">Description</label>
+                    <label htmlFor="description" className="form-label">
+                      Description
+                    </label>
                     <textarea
                       className="form-control"
                       id="description"
@@ -100,7 +111,9 @@ const CreateRoom = ({ theme }) => {
                   </div>
 
                   <div className="mb-3">
-                    <label htmlFor="thumbnail" className="form-label">Room Thumbnail</label>
+                    <label htmlFor="thumbnail" className="form-label">
+                      Room Thumbnail
+                    </label>
                     <input
                       type="file"
                       className="form-control"
@@ -109,13 +122,28 @@ const CreateRoom = ({ theme }) => {
                       onChange={handleImageChange}
                     />
                     {previewUrl && (
-                      <div className="mt-2">
-                        <img
-                          src={previewUrl}
-                          alt="Thumbnail preview"
-                          className="img-thumbnail"
-                          style={{ maxHeight: '200px' }}
-                        />
+                      <div className="mt-2 d-flex justify-content-center">
+                        <div
+                          className={`d-flex align-items-center justify-content-center rounded-circle overflow-hidden ${
+                            theme === 'dark' ? 'bg-dark' : 'bg-white'
+                          }`}
+                          style={{
+                            width: '100px',
+                            height: '100px',
+                            position: 'relative',
+                          }}
+                        >
+                          <img
+                            src={previewUrl}
+                            alt="Thumbnail preview"
+                            className="w-100 h-100 object-fit-cover"
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>

@@ -59,6 +59,7 @@ project/
   ├─────auth.js
   ├─────rooms.js
   ├─────users.js
+  ├─────threads.js
   ├── services/
   ├─────roomService.js
   ├── public/

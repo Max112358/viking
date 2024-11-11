@@ -5,6 +5,7 @@ import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ChatInterface from './components/ChatInterface';
 import CreateRoom from './components/CreateRoom';
+import CreateThread from './components/CreateThread';
 import './colors.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -35,6 +36,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword theme={theme} />} />
             <Route path="/register" element={<Register theme={theme} />} />
             <Route path="/create-room" element={<CreateRoom theme={theme} />} />
+            <Route path="/create-thread" element={<CreateThread theme={theme} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
