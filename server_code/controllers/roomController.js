@@ -32,9 +32,8 @@ exports.createRoom = async (req, res) => {
 };
 
 exports.getUserRooms = async (req, res) => {
-  const userId = req.params.userId;
-
-  //console.log('get user rooms endpoint hit with data:', req.body);
+  // Get userId from the JWT token instead of URL parameters
+  const userId = req.user.userId;
 
   try {
     const userRooms = await db.query(
@@ -57,7 +56,7 @@ exports.getUserRooms = async (req, res) => {
 
 exports.joinRoom = async (req, res) => {
   const { roomId } = req.params;
-  const userId = req.body.userId;
+  const userId = req.user.userId; // Also fixed here
 
   try {
     const existingMember = await db.query('SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
@@ -77,9 +76,7 @@ exports.joinRoom = async (req, res) => {
 
 exports.leaveRoom = async (req, res) => {
   const { roomId } = req.params;
-  const userId = req.body.userId;
-
-  //console.log('leave room endpoint hit with data:', roomId, " ", userId);
+  const userId = req.user.userId; // Fixed here too
 
   try {
     await db.transaction(async (client) => {
@@ -101,7 +98,7 @@ exports.leaveRoom = async (req, res) => {
 
 exports.deleteRoom = async (req, res) => {
   const { roomId } = req.params;
-  const userId = req.body.userId;
+  const userId = req.user.userId; // And here
 
   try {
     await db.transaction(async (client) => {

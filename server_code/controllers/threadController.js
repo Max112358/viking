@@ -2,72 +2,84 @@
 const db = require('../db');
 
 exports.createThread = async (req, res) => {
-    const { roomId } = req.params;
-    const { subject, content, userId, isAnonymous } = req.body;
-  
-    try {
-      await db.transaction(async (client) => {
-        // Check if user is a member of the room
-        const memberCheck = await client.query(
-          'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
-          [roomId, userId]
-        );
-  
-        if (memberCheck.rows.length === 0) {
-          throw new Error('User is not a member of this room');
-        }
-  
-        // Create thread
-        const threadResult = await client.query(
-          'INSERT INTO threads (room_id, subject, author_id, is_anonymous) VALUES ($1, $2, $3, $4) RETURNING id',
-          [roomId, subject, isAnonymous ? null : userId, isAnonymous]
-        );
-  
-        // Create initial post
-        await client.query(
-          'INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3)',
-          [threadResult.rows[0].id, isAnonymous ? null : userId, content]
-        );
-  
-        return threadResult.rows[0];
-      });
-  
-      res.status(201).json({ message: 'Thread created successfully' });
-    } catch (error) {
-      console.error('Error creating thread:', error);
-      res.status(error.message === 'User is not a member of this room' ? 403 : 500)
-         .json({ message: error.message });
-    }
-  };
+  const { roomId } = req.params;
+  const { subject, content, isAnonymous } = req.body;
+  const userId = req.user.userId; // Get from JWT token
+
+  try {
+    await db.transaction(async (client) => {
+      // Check if user is a member of the room
+      const memberCheck = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+
+      if (memberCheck.rows.length === 0) {
+        throw new Error('User is not a member of this room');
+      }
+
+      // Create thread
+      const threadResult = await client.query(
+        'INSERT INTO threads (room_id, subject, author_id, is_anonymous) VALUES ($1, $2, $3, $4) RETURNING id',
+        [roomId, subject, isAnonymous ? null : userId, isAnonymous]
+      );
+
+      // Create initial post
+      await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3)', [
+        threadResult.rows[0].id,
+        isAnonymous ? null : userId,
+        content,
+      ]);
+
+      return threadResult.rows[0];
+    });
+
+    res.status(201).json({ message: 'Thread created successfully' });
+  } catch (error) {
+    console.error('Error creating thread:', error);
+    res.status(error.message === 'User is not a member of this room' ? 403 : 500).json({ message: error.message });
+  }
+};
 
 exports.getThreads = async (req, res) => {
   const { roomId } = req.params;
   const { page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
+  const userId = req.user.userId;
 
   try {
-    const threads = await db.query(`
+    // First check if user is a member of the room
+    const memberCheck = await db.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ message: 'User is not a member of this room' });
+    }
+
+    const threads = await db.query(
+      `
       SELECT 
         t.id,
         t.subject,
         t.created_at,
         t.is_pinned,
         t.last_activity,
-        u.email as author_email,
+        CASE 
+          WHEN t.is_anonymous THEN NULL 
+          ELSE u.email 
+        END as author_email,
         COUNT(p.id) as post_count,
         FIRST_VALUE(p.content) OVER (
           PARTITION BY t.id 
           ORDER BY p.created_at
         ) as first_post
       FROM threads t
-      JOIN users u ON t.author_id = u.id
+      LEFT JOIN users u ON t.author_id = u.id
       LEFT JOIN posts p ON t.id = p.thread_id
       WHERE t.room_id = $1
       GROUP BY t.id, t.subject, t.created_at, t.is_pinned, 
-               t.last_activity, u.email, p.content
+               t.last_activity, t.is_anonymous, u.email, p.content
       ORDER BY t.is_pinned DESC, t.last_activity DESC
       LIMIT $2 OFFSET $3
-    `, [roomId, limit, offset]);
+    `,
+      [roomId, limit, offset]
+    );
 
     res.json({ threads: threads.rows });
   } catch (error) {
@@ -80,21 +92,43 @@ exports.getPosts = async (req, res) => {
   const { threadId } = req.params;
   const { page = 1, limit = 50 } = req.query;
   const offset = (page - 1) * limit;
+  const userId = req.user.userId;
 
   try {
-    const posts = await db.query(`
+    // Check if user is a member of the room that contains this thread
+    const memberCheck = await db.query(
+      `
+      SELECT 1 FROM room_members rm
+      JOIN threads t ON t.room_id = rm.room_id
+      WHERE t.id = $1 AND rm.user_id = $2
+      `,
+      [threadId, userId]
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ message: 'User is not a member of this room' });
+    }
+
+    const posts = await db.query(
+      `
       SELECT 
         p.id,
         p.content,
         p.created_at,
         p.updated_at,
-        u.email as author_email
+        CASE 
+          WHEN t.is_anonymous THEN NULL 
+          ELSE u.email 
+        END as author_email
       FROM posts p
-      JOIN users u ON p.author_id = u.id
+      JOIN threads t ON p.thread_id = t.id
+      LEFT JOIN users u ON p.author_id = u.id
       WHERE p.thread_id = $1
       ORDER BY p.created_at ASC
       LIMIT $2 OFFSET $3
-    `, [threadId, limit, offset]);
+    `,
+      [threadId, limit, offset]
+    );
 
     res.json({ posts: posts.rows });
   } catch (error) {
@@ -105,67 +139,66 @@ exports.getPosts = async (req, res) => {
 
 exports.createPost = async (req, res) => {
   const { threadId } = req.params;
-  const { content, userId } = req.body;
+  const { content } = req.body;
+  const userId = req.user.userId; // Get from JWT token
 
   try {
     await db.transaction(async (client) => {
       // Check if user is a member of the room containing this thread
-      const memberCheck = await client.query(`
+      const memberCheck = await client.query(
+        `
         SELECT 1 FROM room_members rm
         JOIN threads t ON t.room_id = rm.room_id
         WHERE t.id = $1 AND rm.user_id = $2
-      `, [threadId, userId]);
+      `,
+        [threadId, userId]
+      );
 
       if (memberCheck.rows.length === 0) {
         throw new Error('User is not a member of this room');
       }
 
       // Create post
-      await client.query(
-        'INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3)',
-        [threadId, userId, content]
-      );
+      await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3)', [threadId, userId, content]);
 
       // Update thread's last_activity
-      await client.query(
-        'UPDATE threads SET last_activity = CURRENT_TIMESTAMP WHERE id = $1',
-        [threadId]
-      );
+      await client.query('UPDATE threads SET last_activity = CURRENT_TIMESTAMP WHERE id = $1', [threadId]);
     });
 
     res.status(201).json({ message: 'Post created successfully' });
   } catch (error) {
     console.error('Error creating post:', error);
-    res.status(error.message === 'User is not a member of this room' ? 403 : 500)
-       .json({ message: error.message });
+    res.status(error.message === 'User is not a member of this room' ? 403 : 500).json({ message: error.message });
   }
 };
 
 exports.deleteThread = async (req, res) => {
-    const { threadId } = req.params;
-    const { userId } = req.body;
-  
-    try {
-      await db.transaction(async (client) => {
-        // Check if user is the thread author or room admin
-        const authorCheck = await client.query(`
+  const { threadId } = req.params;
+  const userId = req.user.userId; // Get from JWT token
+
+  try {
+    await db.transaction(async (client) => {
+      // Check if user is the thread author or room admin
+      const authorCheck = await client.query(
+        `
           SELECT 1 FROM threads t
           JOIN room_members rm ON t.room_id = rm.room_id
           WHERE t.id = $1 
           AND (t.is_anonymous = false AND t.author_id = $2 OR (rm.user_id = $2 AND rm.is_admin = true))
-        `, [threadId, userId]);
-  
-        if (authorCheck.rows.length === 0) {
-          throw new Error('Not authorized to delete thread');
-        }
-  
-        await client.query('DELETE FROM threads WHERE id = $1', [threadId]);
-      });
-  
-      res.status(200).json({ message: 'Thread deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting thread:', error);
-      res.status(error.message === 'Not authorized to delete thread' ? 403 : 500)
-         .json({ message: error.message });
-    }
+        `,
+        [threadId, userId]
+      );
+
+      if (authorCheck.rows.length === 0) {
+        throw new Error('Not authorized to delete thread');
+      }
+
+      await client.query('DELETE FROM threads WHERE id = $1', [threadId]);
+    });
+
+    res.status(200).json({ message: 'Thread deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting thread:', error);
+    res.status(error.message === 'Not authorized to delete thread' ? 403 : 500).json({ message: error.message });
+  }
 };
