@@ -204,6 +204,16 @@ const ChatInterface = ({ theme }) => {
     }
   };
 
+  const handleLogout = () => {
+    // Remove the token from local storage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
+
+    // Navigate the user to the login page
+    navigate('/');
+  };
+
   const getBaseClasses = (isDark) =>
     `${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} 
      ${isDark ? 'border-secondary' : 'border-light'}`.trim();
@@ -426,6 +436,11 @@ const ChatInterface = ({ theme }) => {
           </div>
         )}
       </div>
+
+      {/* Logout button */}
+      <button className={`btn btn-sm btn-outline-danger position-fixed top-0 end-0 m-2 z-3 ${buttonThemeClasses}`} onClick={handleLogout}>
+        <i className="bi bi-box-arrow-right"></i> Logout
+      </button>
 
       <style>
         {`
