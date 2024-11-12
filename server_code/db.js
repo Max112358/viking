@@ -26,6 +26,47 @@ async function transaction(callback) {
   }
 }
 
+// Function to run migrations
+async function runMigrations() {
+  const client = await pool.connect();
+  try {
+    // Create migrations table if it doesn't exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        executed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Define migrations
+    const migrations = [
+      {
+        name: 'add_is_anonymous_to_threads',
+        up: `ALTER TABLE threads ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT FALSE;`,
+      },
+      // Add more migrations here as needed
+    ];
+
+    // Execute pending migrations
+    for (const migration of migrations) {
+      const migrationExists = await client.query('SELECT 1 FROM migrations WHERE name = $1', [migration.name]);
+
+      if (migrationExists.rows.length === 0) {
+        console.log(`Executing migration: ${migration.name}`);
+        await client.query(migration.up);
+        await client.query('INSERT INTO migrations (name) VALUES ($1)', [migration.name]);
+        console.log(`Completed migration: ${migration.name}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error running migrations:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Function to create all necessary tables if they don't exist
 async function initializeDatabase() {
   const client = await pool.connect();
@@ -92,6 +133,9 @@ async function initializeDatabase() {
     `);
     console.log('Posts table ensured');
 
+    // Run migrations after initial table creation
+    await runMigrations();
+    console.log('Database migrations completed');
   } catch (err) {
     console.error('Error initializing database tables:', err);
     throw err;
