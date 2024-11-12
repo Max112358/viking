@@ -15,7 +15,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use('/uploads', express.static('public/uploads'));
-app.use(upload.any());
+//app.use(upload.any());
 
 // Initialize database
 db.initializeDatabase();
