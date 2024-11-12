@@ -206,9 +206,12 @@ const ChatInterface = ({ theme }) => {
 
   const handleLogout = () => {
     // Remove the token from local storage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userEmail');
+    //localStorage.removeItem('authToken');
+    //localStorage.removeItem('userId');
+    //localStorage.removeItem('userEmail');
+
+    // Clear all items from local storage
+    localStorage.clear();
 
     // Navigate the user to the login page
     navigate('/');

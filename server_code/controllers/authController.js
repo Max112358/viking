@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 
 exports.register = async (req, res) => {
+  //console.log('Register User got hit');
+
   const { email, password } = req.body;
 
   try {
