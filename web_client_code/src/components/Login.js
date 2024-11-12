@@ -25,7 +25,11 @@ const Login = ({ theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('userEmail', email);
+        // Store the token in local storage
+        localStorage.setItem('authToken', data.token);
+        // Store the user information in local storage
+        localStorage.setItem('userId', data.user.id);
+        localStorage.setItem('userEmail', data.user.email);
         navigate('/chat');
       } else {
         setError(data.message || 'Login failed');
@@ -37,7 +41,9 @@ const Login = ({ theme }) => {
   };
 
   return (
-    <div className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
+    <div
+      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}
+    >
       <div className="w-100" style={{ maxWidth: '500px' }}>
         <form onSubmit={handleSubmit} className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
           <div className="card-body p-2">
@@ -83,18 +89,10 @@ const Login = ({ theme }) => {
             </div>
 
             <div className="d-flex justify-content-between mt-2">
-              <button
-                type="button"
-                className="btn btn-link p-0"
-                onClick={() => navigate('/register')}
-              >
+              <button type="button" className="btn btn-link p-0" onClick={() => navigate('/register')}>
                 Register an account
               </button>
-              <button
-                type="button"
-                className="btn btn-link p-0"
-                onClick={() => navigate('/forgot-password')}
-              >
+              <button type="button" className="btn btn-link p-0" onClick={() => navigate('/forgot-password')}>
                 Forgot your password?
               </button>
             </div>

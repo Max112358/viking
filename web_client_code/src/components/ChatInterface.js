@@ -40,8 +40,25 @@ const ChatInterface = ({ theme }) => {
 
   const fetchRooms = async () => {
     try {
-      const userId = '1'; // Replace with actual user ID
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`);
+      const userId = localStorage.getItem('userId');
+      const token = localStorage.getItem('authToken');
+
+      if (!userId || !token) {
+        handleInvalidToken();
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleInvalidToken();
+        return;
+      }
+
       const data = await response.json();
       setRooms(data.rooms || []);
     } catch (error) {
@@ -51,12 +68,34 @@ const ChatInterface = ({ theme }) => {
 
   const fetchThreads = async (roomId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/threads`);
+      const token = localStorage.getItem('authToken');
+
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/threads`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleInvalidToken();
+        return;
+      }
+
       const data = await response.json();
       setThreads(data.threads || []);
     } catch (error) {
       console.error('Error fetching threads:', error);
     }
+  };
+
+  const handleInvalidToken = () => {
+    // Remove the token from local storage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
+
+    // Navigate the user to the login page
+    navigate('/');
   };
 
   useEffect(() => {
@@ -104,11 +143,19 @@ const ChatInterface = ({ theme }) => {
 
   const handleLeaveRoom = async (roomId) => {
     try {
-      const userId = '1'; // Replace with actual user ID
+      const userId = localStorage.getItem('userId');
+      const token = localStorage.getItem('authToken');
+
+      if (!userId || !token) {
+        handleInvalidToken();
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/leave`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ userId }),
       });
@@ -139,9 +186,7 @@ const ChatInterface = ({ theme }) => {
           onError={(e) => {
             e.target.onerror = null;
             e.target.style.display = 'none';
-            e.target.parentElement.textContent = room.name
-              .charAt(0)
-              .toUpperCase();
+            e.target.parentElement.textContent = room.name.charAt(0).toUpperCase();
           }}
         />
       );
@@ -154,7 +199,9 @@ const ChatInterface = ({ theme }) => {
   };
 
   const handleCreateThread = () => {
-    navigate(`/create-thread`);
+    if (selectedRoom) {
+      navigate(`/create-thread/${selectedRoom.room_id}`);
+    }
   };
 
   const getBaseClasses = (isDark) =>
@@ -169,17 +216,14 @@ const ChatInterface = ({ theme }) => {
   };
 
   const getThreadSidebarWidth = () => {
-    const maxThreadSubjectLength = Math.max(
-      ...threads.map((thread) => thread.subject.length)
-    );
+    const maxThreadSubjectLength = Math.max(...threads.map((thread) => thread.subject.length));
     return Math.max(150, 24 + maxThreadSubjectLength * 8); // Adjust width based on longest thread subject
   };
 
   const getThreadTitleStyle = (roomName) => {
     const sidebarWidth = getThreadSidebarWidth();
     const words = roomName.split(' ');
-    const avgWordLength =
-      words.reduce((sum, word) => sum + word.length, 0) / words.length;
+    const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
     const wordsPerLine = Math.ceil(words.length / 3); // Distribute words across 3 lines
     const targetWidth = sidebarWidth * 0.9; // 90% of sidebar width
 
@@ -223,17 +267,11 @@ const ChatInterface = ({ theme }) => {
   duration-300
   `.trim();
 
-  const buttonThemeClasses =
-    theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark';
-  const selectedButtonClasses =
-    theme === 'dark' ? 'btn-primary' : 'btn-primary';
+  const buttonThemeClasses = theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark';
+  const selectedButtonClasses = theme === 'dark' ? 'btn-primary' : 'btn-primary';
 
   return (
-    <div
-      className={`vh-100 ${
-        theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'
-      }`}
-    >
+    <div className={`vh-100 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {/* Mobile buttons with smaller size */}
       {isMobile && (
         <>
@@ -249,18 +287,14 @@ const ChatInterface = ({ theme }) => {
               className="btn position-fixed top-0 start-0 m-2 z-3" // Reduced margin
               style={{ left: '64px' }} // Reduced from 80px
             >
-              <i className="bi bi-chat-left-text fs-5"></i>{' '}
-              {/* Reduced from fs-4 */}
+              <i className="bi bi-chat-left-text fs-5"></i> {/* Reduced from fs-4 */}
             </button>
           )}
         </>
       )}
 
       {/* Rooms Sidebar with dynamic width */}
-      <div
-        className={roomSidebarClasses}
-        style={{ width: `${getRoomSidebarWidth()}px`, zIndex: 2 }}
-      >
+      <div className={roomSidebarClasses} style={{ width: `${getRoomSidebarWidth()}px`, zIndex: 2 }}>
         <div className="d-flex flex-column p-2 gap-2">
           {rooms.map((room) => (
             <button
@@ -275,11 +309,7 @@ const ChatInterface = ({ theme }) => {
                 justify-content-center
                 p-0
                 overflow-hidden
-                ${
-                  selectedRoom?.room_id === room.room_id
-                    ? selectedButtonClasses
-                    : buttonThemeClasses
-                }
+                ${selectedRoom?.room_id === room.room_id ? selectedButtonClasses : buttonThemeClasses}
               `}
               style={{
                 width: `${ROOM_BUTTON_SIZE}px`,
@@ -318,10 +348,7 @@ const ChatInterface = ({ theme }) => {
           <div className="p-2">
             <div className="d-flex flex-column gap-2">
               <div className="d-flex justify-content-between align-items-center">
-                <h6
-                  className="m-0"
-                  style={getThreadTitleStyle(selectedRoom.name)}
-                >
+                <h6 className="m-0" style={getThreadTitleStyle(selectedRoom.name)}>
                   {selectedRoom.name}
                 </h6>
               </div>
@@ -346,11 +373,7 @@ const ChatInterface = ({ theme }) => {
                     className={`
                     btn 
                     text-start 
-                    ${
-                      selectedThread?.id === thread.id
-                        ? selectedButtonClasses
-                        : buttonThemeClasses
-                    }
+                    ${selectedThread?.id === thread.id ? selectedButtonClasses : buttonThemeClasses}
                   `}
                     title={thread.subject} // Added title since we're removing text
                   >
@@ -367,10 +390,7 @@ const ChatInterface = ({ theme }) => {
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y}>
           <div className="py-2">
-            <button
-              className="btn btn-link text-danger w-100 text-start px-3"
-              onClick={() => handleLeaveRoom(contextMenu.room.room_id)}
-            >
+            <button className="btn btn-link text-danger w-100 text-start px-3" onClick={() => handleLeaveRoom(contextMenu.room.room_id)}>
               Leave Room
             </button>
           </div>
@@ -393,27 +413,15 @@ const ChatInterface = ({ theme }) => {
       >
         {selectedThread ? (
           <div className="h-100 p-3">
-            <h2
-              className={`fs-4 fw-bold mb-3 ${
-                theme === 'dark' ? 'text-light' : 'text-dark'
-              }`}
-            >
-              {selectedThread.subject}
-            </h2>
-            <div
-              className={`h-100 rounded ${
-                theme === 'dark' ? 'bg-secondary' : 'bg-light'
-              }`}
-            >
+            <h2 className={`fs-4 fw-bold mb-3 ${theme === 'dark' ? 'text-light' : 'text-dark'}`}>{selectedThread.subject}</h2>
+            <div className={`h-100 rounded ${theme === 'dark' ? 'bg-secondary' : 'bg-light'}`}>
               <div className="p-3">Chat messages will appear here</div>
             </div>
           </div>
         ) : (
           <div className="h-100 d-flex align-items-center justify-content-center">
             <p className={theme === 'dark' ? 'text-light' : 'text-dark'}>
-              {selectedRoom
-                ? 'Select a thread to start chatting'
-                : 'Select a room to view threads'}
+              {selectedRoom ? 'Select a thread to start chatting' : 'Select a room to view threads'}
             </p>
           </div>
         )}

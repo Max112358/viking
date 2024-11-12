@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -13,13 +13,27 @@ const CreateThread = ({ theme }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const userId = '1'; // Replace with actual user ID from authentication
+  const userId = localStorage.getItem('userId');
+  const authToken = localStorage.getItem('authToken');
+
+  // Add validation for roomId
+  useEffect(() => {
+    if (!roomId) {
+      navigate('/chat');
+    }
+  }, [roomId, navigate]);
+
+  // Check if the user is authenticated
+  useEffect(() => {
+    if (!authToken || !userId) {
+      navigate('/login');
+    }
+  }, [authToken, userId, navigate]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
-      // Create a transparent preview URL for the selected image
       const url = URL.createObjectURL(file);
       setPreviewUrl(`url(${url})`);
     }
@@ -31,11 +45,10 @@ const CreateThread = ({ theme }) => {
     setError('');
 
     try {
-      // Create form data to handle file upload
       const formData = new FormData();
       formData.append('subject', subject);
       formData.append('content', message);
-      formData.append('userId', isAnonymous ? null : userId);
+      formData.append('userId', userId); // Always send the userId
       formData.append('isAnonymous', isAnonymous);
       if (image) {
         formData.append('image', image);
@@ -43,13 +56,22 @@ const CreateThread = ({ theme }) => {
 
       const response = await fetch(`${API_BASE_URL}/threads/${roomId}`, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
         body: formData,
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        navigate(`/chat/rooms/${roomId}`); // Navigate to the room page after creating the thread
+        navigate(`/chat/rooms/${roomId}`);
+      } else if (response.status === 401) {
+        // Handle invalid token case
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userEmail');
+        navigate('/login');
       } else {
         setError(data.message || 'Failed to create thread');
       }
@@ -62,7 +84,7 @@ const CreateThread = ({ theme }) => {
   };
 
   const handleCancel = () => {
-    navigate(`/chat`);
+    navigate(`/chat/rooms/${roomId}`);
   };
 
   return (
@@ -78,7 +100,9 @@ const CreateThread = ({ theme }) => {
 
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
-                    <label htmlFor="subject" className="form-label">Subject</label>
+                    <label htmlFor="subject" className="form-label">
+                      Subject
+                    </label>
                     <input
                       type="text"
                       className="form-control"
@@ -91,7 +115,9 @@ const CreateThread = ({ theme }) => {
                   </div>
 
                   <div className="mb-3">
-                    <label htmlFor="message" className="form-label">Message</label>
+                    <label htmlFor="message" className="form-label">
+                      Message
+                    </label>
                     <textarea
                       className="form-control"
                       id="message"
@@ -104,14 +130,10 @@ const CreateThread = ({ theme }) => {
                   </div>
 
                   <div className="mb-3">
-                    <label htmlFor="image" className="form-label">Image</label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      id="image"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                    />
+                    <label htmlFor="image" className="form-label">
+                      Image
+                    </label>
+                    <input type="file" className="form-control" id="image" accept="image/*" onChange={handleImageChange} />
                     {previewUrl && (
                       <div
                         className="mt-2 image-preview"
@@ -128,7 +150,9 @@ const CreateThread = ({ theme }) => {
                   </div>
 
                   <div className="mb-3 d-flex align-items-center justify-content-between">
-                    <label htmlFor="isAnonymous" className="form-label mb-0">Anonymous Mode</label>
+                    <label htmlFor="isAnonymous" className="form-label mb-0">
+                      Anonymous Mode
+                    </label>
                     <div className="form-check form-switch">
                       <input
                         className="form-check-input"
@@ -141,19 +165,11 @@ const CreateThread = ({ theme }) => {
                   </div>
 
                   <div className="d-grid gap-2">
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={isLoading}
-                    >
+                    <button type="submit" className="btn btn-primary" disabled={isLoading}>
                       {isLoading ? 'Creating...' : 'Create Thread'}
                     </button>
-                    <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={handleCancel}
-                    >
-                        Cancel
+                    <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+                      Cancel
                     </button>
                   </div>
                 </form>

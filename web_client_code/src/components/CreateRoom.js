@@ -29,6 +29,15 @@ const CreateRoom = ({ theme }) => {
     setError('');
 
     try {
+      // Retrieve the JWT token from local storage
+      const authToken = localStorage.getItem('authToken');
+
+      // If there's no token or the token is invalid, navigate to the login page
+      if (!authToken || authToken === 'invalid') {
+        navigate('/login');
+        return;
+      }
+
       // Create form data to handle file upload
       const formData = new FormData();
       formData.append('name', roomName);
@@ -37,11 +46,11 @@ const CreateRoom = ({ theme }) => {
         formData.append('thumbnail', thumbnailImage);
       }
 
-      const userId = '1'; // Replace with actual user ID from authentication
-      formData.append('userId', userId);
-
       const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
         body: formData,
       });
 
@@ -50,7 +59,13 @@ const CreateRoom = ({ theme }) => {
       if (response.ok) {
         navigate('/chat'); // Navigate back to chat interface
       } else {
-        setError(data.message || 'Failed to create room');
+        // If the server responds with a 401 Unauthorized status, the token is likely invalid
+        if (response.status === 401) {
+          localStorage.setItem('authToken', 'invalid');
+          navigate('/login');
+        } else {
+          setError(data.message || 'Failed to create room');
+        }
       }
     } catch (error) {
       console.error('Error creating room:', error);
@@ -61,19 +76,11 @@ const CreateRoom = ({ theme }) => {
   };
 
   return (
-    <div
-      className={`min-vh-100 py-5 ${
-        theme === 'dark' ? 'bg-dark text-light' : 'bg-light'
-      }`}
-    >
+    <div className={`min-vh-100 py-5 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-md-8 col-lg-6">
-            <div
-              className={`card ${
-                theme === 'dark' ? 'bg-mid-dark text-light' : ''
-              }`}
-            >
+            <div className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
               <div className="card-body">
                 <h2 className="card-title text-center mb-4">Create New Room</h2>
 
@@ -114,13 +121,7 @@ const CreateRoom = ({ theme }) => {
                     <label htmlFor="thumbnail" className="form-label">
                       Room Thumbnail
                     </label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      id="thumbnail"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                    />
+                    <input type="file" className="form-control" id="thumbnail" accept="image/*" onChange={handleImageChange} />
                     {previewUrl && (
                       <div className="mt-2 d-flex justify-content-center">
                         <div
@@ -149,18 +150,10 @@ const CreateRoom = ({ theme }) => {
                   </div>
 
                   <div className="d-grid gap-2">
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={isLoading}
-                    >
+                    <button type="submit" className="btn btn-primary" disabled={isLoading}>
                       {isLoading ? 'Creating...' : 'Create Room'}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => navigate('/chat')}
-                    >
+                    <button type="button" className="btn btn-secondary" onClick={() => navigate('/chat')}>
                       Cancel
                     </button>
                   </div>
