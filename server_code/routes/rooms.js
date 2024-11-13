@@ -1,3 +1,4 @@
+// part of backend
 // routes/rooms.js
 const express = require('express');
 const router = express.Router();

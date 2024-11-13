@@ -1,3 +1,4 @@
+// part of backend
 // controllers/threadController.js
 const db = require('../db');
 

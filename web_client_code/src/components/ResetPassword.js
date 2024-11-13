@@ -1,3 +1,5 @@
+// part of frontend
+// components/ResetPassword.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -14,7 +16,7 @@ const ResetPassword = ({ theme }) => {
   useEffect(() => {
     const tokenFromUrl = searchParams.get('token');
     const emailFromUrl = searchParams.get('email');
-    
+
     if (!tokenFromUrl || !emailFromUrl) {
       setError('Invalid reset link. Please request a new password reset.');
       navigate('/forgot-password');
@@ -27,7 +29,7 @@ const ResetPassword = ({ theme }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -57,7 +59,9 @@ const ResetPassword = ({ theme }) => {
   };
 
   return (
-    <div className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
+    <div
+      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}
+    >
       <div className="w-100" style={{ maxWidth: '500px' }}>
         <form onSubmit={handleSubmit} className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
           <div className="card-body p-2">
@@ -105,11 +109,7 @@ const ResetPassword = ({ theme }) => {
             </div>
 
             <div className="text-center mt-2">
-              <button
-                type="button"
-                className="btn btn-link p-0"
-                onClick={() => navigate('/login')}
-              >
+              <button type="button" className="btn btn-link p-0" onClick={() => navigate('/login')}>
                 Back to Login
               </button>
             </div>

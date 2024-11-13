@@ -1,3 +1,4 @@
+// part of backend
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -56,7 +57,7 @@ Rooms contain threads. Any user can make threads within a room. A thread has a s
 Threads contain posts. Any user can make a post within a thread. A post contains a message.
 */
 
-//app file structure DO NOT DELETE THIS
+//backend file structure DO NOT DELETE THIS
 /*
 project/
   ├── controllers/

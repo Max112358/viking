@@ -1,3 +1,5 @@
+// part of frontend
+// components/ForgotPassword.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -49,7 +51,9 @@ const ForgotPassword = ({ theme }) => {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `email=${encodeURIComponent(email)}&reset_code=${encodeURIComponent(resetCode)}&new_password=${encodeURIComponent(newPassword)}`,
+        body: `email=${encodeURIComponent(email)}&reset_code=${encodeURIComponent(resetCode)}&new_password=${encodeURIComponent(
+          newPassword
+        )}`,
       });
 
       if (response.ok) {
@@ -65,9 +69,14 @@ const ForgotPassword = ({ theme }) => {
   };
 
   return (
-    <div className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
+    <div
+      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}
+    >
       <div className="w-100" style={{ maxWidth: '500px' }}>
-        <form onSubmit={showResetForm ? handleResetPassword : handleRequestReset} className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
+        <form
+          onSubmit={showResetForm ? handleResetPassword : handleRequestReset}
+          className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}
+        >
           <div className="card-body p-2">
             <div className="text-center mb-3">
               <img
@@ -140,11 +149,7 @@ const ForgotPassword = ({ theme }) => {
             </div>
 
             <div className="text-center mt-2">
-              <button
-                type="button"
-                className="btn btn-link p-0"
-                onClick={() => navigate('/login')}
-              >
+              <button type="button" className="btn btn-link p-0" onClick={() => navigate('/login')}>
                 Back to Login
               </button>
             </div>

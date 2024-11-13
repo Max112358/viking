@@ -1,3 +1,5 @@
+// part of frontend
+// components/ChatInterface.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';

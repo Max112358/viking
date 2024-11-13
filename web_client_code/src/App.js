@@ -1,3 +1,5 @@
+// part of frontend
+// App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Login from './components/Login';
@@ -42,5 +44,23 @@ function App() {
     </div>
   );
 }
+
+//frontend file structure DO NOT DELETE THIS
+/*
+src/
+  ├── components/
+  ├───── ChatInterface.js
+  ├───── CreateRoom.js
+  ├───── CreateThread.js
+  ├───── ForgotPassword.js
+  ├───── Login.js
+  ├───── Register.js
+  ├───── ResetPassword.js
+  ├── App.js
+  ├── config.js
+  ├── index.js
+  ├── setupTests.js
+  └── colors.css
+  */
 
 export default App;
