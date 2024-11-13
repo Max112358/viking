@@ -2,12 +2,17 @@
 const db = require('../db');
 
 exports.createThread = async (req, res) => {
+  console.log('Create thread got hit');
+
   const { roomId } = req.params;
   const { subject, content, isAnonymous } = req.body;
-  const userId = req.user.userId; // Get from JWT token
+  const userId = req.user.userId;
+
+  // Convert isAnonymous string to boolean
+  const isAnonymousBoolean = isAnonymous === 'true';
 
   try {
-    await db.transaction(async (client) => {
+    const threadId = await db.transaction(async (client) => {
       // Check if user is a member of the room
       const memberCheck = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
 
@@ -15,23 +20,29 @@ exports.createThread = async (req, res) => {
         throw new Error('User is not a member of this room');
       }
 
-      // Create thread
+      // Create empty thread with just the subject
+      // even if anonymous, save user id so that we know who has the rights to delete this thread
       const threadResult = await client.query(
         'INSERT INTO threads (room_id, subject, author_id, is_anonymous) VALUES ($1, $2, $3, $4) RETURNING id',
-        [roomId, subject, isAnonymous ? null : userId, isAnonymous]
+        [roomId, subject, userId, isAnonymousBoolean]
       );
 
-      // Create initial post
-      await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3)', [
-        threadResult.rows[0].id,
-        isAnonymous ? null : userId,
-        content,
-      ]);
-
-      return threadResult.rows[0];
+      return threadResult.rows[0].id;
     });
 
-    res.status(201).json({ message: 'Thread created successfully' });
+    // Now use the existing createPost function to add the first post
+    // We need to modify the request object to match what createPost expects
+    req.params.threadId = threadId;
+    req.body = { content }; // Simplify body to just include content
+
+    // Call createPost (but we need to handle its response differently)
+    await exports.createPost(req, {
+      status: () => ({
+        json: () => {}, // Empty handler since we'll send our own response
+      }),
+    });
+
+    res.status(201).json({ message: 'Thread created successfully', threadId });
   } catch (error) {
     console.error('Error creating thread:', error);
     res.status(error.message === 'User is not a member of this room' ? 403 : 500).json({ message: error.message });
@@ -54,6 +65,15 @@ exports.getThreads = async (req, res) => {
 
     const threads = await db.query(
       `
+      WITH FirstPosts AS (
+        SELECT DISTINCT ON (thread_id)
+          thread_id,
+          content as first_post_content,
+          image_url as first_post_image,
+          created_at
+        FROM posts
+        ORDER BY thread_id, created_at ASC
+      )
       SELECT 
         t.id,
         t.subject,
@@ -65,16 +85,23 @@ exports.getThreads = async (req, res) => {
           ELSE u.email 
         END as author_email,
         COUNT(p.id) as post_count,
-        FIRST_VALUE(p.content) OVER (
-          PARTITION BY t.id 
-          ORDER BY p.created_at
-        ) as first_post
+        fp.first_post_content,
+        fp.first_post_image
       FROM threads t
       LEFT JOIN users u ON t.author_id = u.id
       LEFT JOIN posts p ON t.id = p.thread_id
+      LEFT JOIN FirstPosts fp ON t.id = fp.thread_id
       WHERE t.room_id = $1
-      GROUP BY t.id, t.subject, t.created_at, t.is_pinned, 
-               t.last_activity, t.is_anonymous, u.email, p.content
+      GROUP BY 
+        t.id, 
+        t.subject, 
+        t.created_at, 
+        t.is_pinned,
+        t.last_activity, 
+        t.is_anonymous, 
+        u.email,
+        fp.first_post_content,
+        fp.first_post_image
       ORDER BY t.is_pinned DESC, t.last_activity DESC
       LIMIT $2 OFFSET $3
     `,
@@ -140,7 +167,7 @@ exports.getPosts = async (req, res) => {
 exports.createPost = async (req, res) => {
   const { threadId } = req.params;
   const { content } = req.body;
-  const userId = req.user.userId; // Get from JWT token
+  const userId = req.user.userId;
 
   try {
     await db.transaction(async (client) => {
@@ -158,8 +185,13 @@ exports.createPost = async (req, res) => {
         throw new Error('User is not a member of this room');
       }
 
-      // Create post
-      await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3)', [threadId, userId, content]);
+      // Create post with image if present
+      await client.query('INSERT INTO posts (thread_id, author_id, content, image_url) VALUES ($1, $2, $3, $4)', [
+        threadId,
+        userId,
+        content,
+        req.file ? `/uploads/${req.file.filename}` : null,
+      ]);
 
       // Update thread's last_activity
       await client.query('UPDATE threads SET last_activity = CURRENT_TIMESTAMP WHERE id = $1', [threadId]);

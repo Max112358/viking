@@ -5,7 +5,7 @@ const db = require('../db');
 const { destroyRoom } = require('../services/roomService');
 
 exports.createRoom = async (req, res) => {
-  console.log('Create room got hit');
+  //console.log('Create room got hit');
 
   const { name, description } = req.body;
   const userId = req.user.userId;

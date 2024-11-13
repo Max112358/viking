@@ -28,6 +28,7 @@ const ChatInterface = ({ theme }) => {
   const [contextMenu, setContextMenu] = useState(null);
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail');
+  const userId = localStorage.getItem('userId');
 
   useEffect(() => {
     if (!userEmail) {
@@ -70,7 +71,7 @@ const ChatInterface = ({ theme }) => {
     try {
       const token = localStorage.getItem('authToken');
 
-      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/threads`, {
+      const response = await fetch(`${API_BASE_URL}/threads/${roomId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -132,14 +133,50 @@ const ChatInterface = ({ theme }) => {
     }
   };
 
-  const handleContextMenu = useCallback((e, room) => {
+  const handleContextMenu = useCallback((e, item, type = 'room') => {
     e.preventDefault();
     setContextMenu({
       x: e.pageX,
       y: e.pageY,
-      room: room,
+      item: item,
+      type: type,
     });
   }, []);
+
+  const handleDeleteThread = async (threadId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+
+      if (!token) {
+        handleInvalidToken();
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/threads/${threadId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleInvalidToken();
+        return;
+      }
+
+      if (response.ok) {
+        if (selectedThread?.id === threadId) {
+          setSelectedThread(null);
+        }
+        // Refresh threads list
+        fetchThreads(selectedRoom.room_id);
+      }
+    } catch (error) {
+      console.error('Error deleting thread:', error);
+    } finally {
+      setContextMenu(null);
+    }
+  };
 
   const handleLeaveRoom = async (roomId) => {
     try {
@@ -229,8 +266,9 @@ const ChatInterface = ({ theme }) => {
   };
 
   const getThreadSidebarWidth = () => {
-    const maxThreadSubjectLength = Math.max(...threads.map((thread) => thread.subject.length));
-    return Math.max(150, 24 + maxThreadSubjectLength * 8); // Adjust width based on longest thread subject
+    //const maxThreadSubjectLength = Math.max(...threads.map((thread) => thread.subject.length));
+    //return Math.max(150, 24 + maxThreadSubjectLength * 8); // Adjust width based on longest thread subject
+    return 280; // Fixed width for better formatting of thread cards
   };
 
   const getThreadTitleStyle = (roomName) => {
@@ -376,21 +414,69 @@ const ChatInterface = ({ theme }) => {
               >
                 <i className="bi bi-plus"></i> {/* Changed to icon only */}
               </button>
-              <div className="d-flex flex-column gap-1">
-                {' '}
-                {/* Reduced gap */}
+              <div className="d-flex flex-column gap-2">
                 {threads.map((thread) => (
                   <button
                     key={thread.id}
                     onClick={() => handleThreadSelect(thread)}
+                    onContextMenu={(e) => handleContextMenu(e, thread, 'thread')}
                     className={`
-                    btn 
-                    text-start 
-                    ${selectedThread?.id === thread.id ? selectedButtonClasses : buttonThemeClasses}
-                  `}
-                    title={thread.subject} // Added title since we're removing text
+                      btn 
+                      p-2
+                      text-start 
+                      ${selectedThread?.id === thread.id ? selectedButtonClasses : buttonThemeClasses}
+                    `}
+                    style={{
+                      minHeight: '80px',
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'flex-start',
+                    }}
                   >
-                    <i className="bi bi-plus"></i> {/* Changed to plus icon */}
+                    {thread.first_post_image ? (
+                      <img
+                        src={`${API_BASE_URL}${thread.first_post_image}`}
+                        alt=""
+                        className="rounded"
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          objectFit: 'cover',
+                          flexShrink: 0,
+                        }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="rounded bg-secondary"
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div className="overflow-hidden">
+                      <div className="fw-medium text-truncate mb-1" style={{ fontSize: '14px' }}>
+                        {thread.subject}
+                      </div>
+                      <div
+                        className="small opacity-75"
+                        style={{
+                          fontSize: '12px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: '1.2',
+                        }}
+                      >
+                        {thread.first_post_content}
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -403,9 +489,24 @@ const ChatInterface = ({ theme }) => {
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y}>
           <div className="py-2">
-            <button className="btn btn-link text-danger w-100 text-start px-3" onClick={() => handleLeaveRoom(contextMenu.room.room_id)}>
-              Leave Room
-            </button>
+            {contextMenu.type === 'room' && (
+              <button className="btn btn-link text-danger w-100 text-start px-3" onClick={() => handleLeaveRoom(contextMenu.item.room_id)}>
+                Leave Room
+              </button>
+            )}
+            {contextMenu.type === 'thread' && (
+              <button
+                className={`btn btn-link w-100 text-start px-3 ${contextMenu.item.author_id === userId ? 'text-danger' : 'text-muted'}`}
+                onClick={() => {
+                  if (contextMenu.item.author_id === userId) {
+                    handleDeleteThread(contextMenu.item.id);
+                  }
+                }}
+                disabled={contextMenu.item.author_id !== userId}
+              >
+                Delete Thread {contextMenu.item.author_id !== userId ? '(must be author)' : ''}
+              </button>
+            )}
           </div>
         </ContextMenu>
       )}

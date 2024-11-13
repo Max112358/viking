@@ -15,7 +15,6 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use('/uploads', express.static('public/uploads'));
-//app.use(upload.any());
 
 // Initialize database
 db.initializeDatabase();
@@ -29,6 +28,15 @@ app.use((req, res, next) => {
   next(); // Pass to the next middleware or route handler
 });
 //*/
+
+//error handling middleware to catch Multer errors
+app.use((error, req, res, next) => {
+  console.error('Error:', error);
+  if (error instanceof multer.MulterError) {
+    return res.status(400).json({ message: 'File upload error' });
+  }
+  next(error);
+});
 
 // Routes - mount at root level to keep original paths
 app.use('/', require('./routes/auth'));

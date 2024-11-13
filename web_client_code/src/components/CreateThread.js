@@ -48,6 +48,7 @@ const CreateThread = ({ theme }) => {
       const formData = new FormData();
       formData.append('subject', subject);
       formData.append('content', message);
+      //not sure we need to send user id due to it being in the token
       formData.append('userId', userId); // Always send the userId
       formData.append('isAnonymous', isAnonymous);
       if (image) {

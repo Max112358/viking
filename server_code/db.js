@@ -45,6 +45,10 @@ async function runMigrations() {
         name: 'add_is_anonymous_to_threads',
         up: `ALTER TABLE threads ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT FALSE;`,
       },
+      {
+        name: 'add_image_url_to_posts',
+        up: `ALTER TABLE posts ADD COLUMN IF NOT EXISTS image_url VARCHAR(255);`,
+      },
       // Add more migrations here as needed
     ];
 
