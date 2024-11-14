@@ -32,6 +32,45 @@ const ChatInterface = ({ theme }) => {
   const userEmail = localStorage.getItem('userEmail');
   const userId = localStorage.getItem('userId');
 
+  // Move fetchRooms to useCallback to prevent dependency issues
+ // First, wrap handleInvalidToken in useCallback
+const handleInvalidToken = useCallback(() => {
+  // Remove the token from local storage
+  localStorage.clear();
+
+  // Navigate the user to the login page
+  navigate('/');
+}, [navigate]); // Add navigate as a dependency
+
+// Then update fetchRooms to include handleInvalidToken in its dependencies
+const fetchRooms = useCallback(async () => {
+  try {
+    const userId = localStorage.getItem('userId');
+    const token = localStorage.getItem('authToken');
+
+    if (!userId || !token) {
+      handleInvalidToken();
+      return;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.status === 401) {
+      handleInvalidToken();
+      return;
+    }
+
+    const data = await response.json();
+    setRooms(data.rooms || []);
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+  }
+}, [handleInvalidToken]); // Add handleInvalidToken as a dependency
+
   useEffect(() => {
     if (!userEmail) {
       navigate('/');
@@ -39,67 +78,33 @@ const ChatInterface = ({ theme }) => {
     }
 
     fetchRooms();
-  }, [userEmail, navigate]);
+  }, [userEmail, navigate, fetchRooms]); // Added fetchRooms to dependency array
 
-  const fetchRooms = async () => {
-    try {
-      const userId = localStorage.getItem('userId');
-      const token = localStorage.getItem('authToken');
-
-      if (!userId || !token) {
-        handleInvalidToken();
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 401) {
-        handleInvalidToken();
-        return;
-      }
-
-      const data = await response.json();
-      setRooms(data.rooms || []);
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-    }
-  };
 
   const fetchThreads = async (roomId) => {
     try {
       const token = localStorage.getItem('authToken');
-
+  
       const response = await fetch(`${API_BASE_URL}/threads/${roomId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
+  
       if (response.status === 401) {
         handleInvalidToken();
         return;
       }
-
+  
       const data = await response.json();
+      // Debug log
+      console.log('Received thread data:', data);
       setThreads(data.threads || []);
     } catch (error) {
       console.error('Error fetching threads:', error);
     }
   };
 
-  const handleInvalidToken = () => {
-    // Remove the token from local storage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userEmail');
-
-    // Navigate the user to the login page
-    navigate('/');
-  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -276,8 +281,8 @@ const ChatInterface = ({ theme }) => {
   const getThreadTitleStyle = (roomName) => {
     const sidebarWidth = getThreadSidebarWidth();
     const words = roomName.split(' ');
-    const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
-    const wordsPerLine = Math.ceil(words.length / 3); // Distribute words across 3 lines
+    //const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
+    //const wordsPerLine = Math.ceil(words.length / 3); // Distribute words across 3 lines
     const targetWidth = sidebarWidth * 0.9; // 90% of sidebar width
 
     // Calculate font size based on longest word to ensure it fits
@@ -417,7 +422,10 @@ const ChatInterface = ({ theme }) => {
                 <i className="bi bi-plus"></i> {/* Changed to icon only */}
               </button>
               <div className="d-flex flex-column gap-2">
+                
                 {threads.map((thread) => (
+                  //console.log('Thread image URL:', thread.first_post_image),
+
                   <button
                     key={thread.id}
                     onClick={() => handleThreadSelect(thread)}
@@ -437,7 +445,9 @@ const ChatInterface = ({ theme }) => {
                   >
                     {thread.first_post_image ? (
                       <img
-                        src={`${API_BASE_URL}${thread.first_post_image}`}
+                        src={thread.first_post_image.startsWith('http') 
+                          ? thread.first_post_image 
+                          : `${API_BASE_URL}${thread.first_post_image}`}
                         alt=""
                         className="rounded"
                         style={{
@@ -449,6 +459,13 @@ const ChatInterface = ({ theme }) => {
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.style.display = 'none';
+                          // Replace with gray box on error
+                          e.target.parentElement.innerHTML = `
+                            <div
+                              class="rounded bg-secondary"
+                              style="width: 60px; height: 60px; flex-shrink: 0;"
+                            ></div>
+                          `;
                         }}
                       />
                     ) : (
