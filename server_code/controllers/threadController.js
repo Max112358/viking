@@ -30,10 +30,11 @@ exports.createThread = async (req, res) => {
       const threadId = threadResult.rows[0].id;
 
       // Create the first post
-      const postResult = await client.query(
-        'INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id',
-        [threadId, userId, content]
-      );
+      const postResult = await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [
+        threadId,
+        userId,
+        content,
+      ]);
 
       // If there's a file, add it to file_attachments
       if (req.file) {
@@ -42,22 +43,16 @@ exports.createThread = async (req, res) => {
           `INSERT INTO file_attachments 
            (post_id, file_name, file_type, file_size, file_url) 
            VALUES ($1, $2, $3, $4, $5)`,
-          [
-            postResult.rows[0].id,
-            req.file.filename,
-            req.file.mimetype,
-            req.file.size,
-            `/uploads/${req.file.filename}`
-          ]
+          [postResult.rows[0].id, req.file.filename, req.file.mimetype, req.file.size, `/uploads/${req.file.filename}`]
         );
       }
 
       return threadId;
     });
 
-    res.status(201).json({ 
-      message: 'Thread created successfully', 
-      threadId: result
+    res.status(201).json({
+      message: 'Thread created successfully',
+      threadId: result,
     });
   } catch (error) {
     console.error('Error creating thread:', error);
@@ -194,24 +189,41 @@ exports.createPost = async (req, res) => {
   try {
     await db.transaction(async (client) => {
       // Check if user is a member of the room containing this thread
-      const memberCheck = await client.query(
+      const roomCheck = await client.query(
         `
-        SELECT 1 FROM room_members rm
-        JOIN threads t ON t.room_id = rm.room_id
+        SELECT r.posts_per_thread, t.is_locked
+        FROM rooms r
+        JOIN threads t ON t.room_id = r.room_id
+        JOIN room_members rm ON r.id = rm.room_id
         WHERE t.id = $1 AND rm.user_id = $2
-      `,
+        `,
         [threadId, userId]
       );
 
-      if (memberCheck.rows.length === 0) {
+      if (roomCheck.rows.length === 0) {
         throw new Error('User is not a member of this room');
       }
 
-      // Create the post first
-      const postResult = await client.query(
-        'INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id',
-        [threadId, userId, content]
-      );
+      if (roomCheck.rows[0].is_locked) {
+        throw new Error('Thread is locked');
+      }
+
+      // Count existing posts
+      const postCount = await client.query('SELECT COUNT(*) FROM posts WHERE thread_id = $1', [threadId]);
+
+      const postLimit = roomCheck.rows[0].posts_per_thread;
+      if (postLimit && parseInt(postCount.rows[0].count) >= postLimit) {
+        // Lock the thread when limit is reached
+        await client.query('UPDATE threads SET is_locked = true WHERE id = $1', [threadId]);
+        throw new Error('Thread has reached its post limit and is now locked');
+      }
+
+      // Create the post
+      const postResult = await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [
+        threadId,
+        userId,
+        content,
+      ]);
 
       // If there's a file, add it to file_attachments
       if (req.file) {
@@ -219,13 +231,7 @@ exports.createPost = async (req, res) => {
           `INSERT INTO file_attachments 
            (post_id, file_name, file_type, file_size, file_url) 
            VALUES ($1, $2, $3, $4, $5)`,
-          [
-            postResult.rows[0].id,
-            req.file.filename,
-            req.file.mimetype,
-            req.file.size,
-            `/uploads/${req.file.filename}`
-          ]
+          [postResult.rows[0].id, req.file.filename, req.file.mimetype, req.file.size, `/uploads/${req.file.filename}`]
         );
       }
 
@@ -236,7 +242,14 @@ exports.createPost = async (req, res) => {
     res.status(201).json({ message: 'Post created successfully' });
   } catch (error) {
     console.error('Error creating post:', error);
-    res.status(error.message === 'User is not a member of this room' ? 403 : 500).json({ message: error.message });
+    const status =
+      {
+        'User is not a member of this room': 403,
+        'Thread is locked': 403,
+        'Thread has reached its post limit and is now locked': 403,
+      }[error.message] || 500;
+
+    res.status(status).json({ message: error.message });
   }
 };
 
