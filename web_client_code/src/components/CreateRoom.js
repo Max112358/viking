@@ -10,6 +10,7 @@ const CreateRoom = ({ theme }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isNsfw, setIsNsfw] = useState(false);
 
   // Room settings
   const [isPublic, setIsPublic] = useState(false);
@@ -64,9 +65,9 @@ const CreateRoom = ({ theme }) => {
       formData.append('allowAnonymous', allowAnonymous);
       formData.append('allowUserThreads', allowUserThreads);
       formData.append('threadLimit', getThreadLimitForAPI(threadLimit));
-      // Add new settings
       formData.append('anonymousUniquePerThread', anonymousUniquePerThread);
       formData.append('showCountryFlags', showCountryFlags);
+      formData.append('isNsfw', isNsfw);
 
       const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'POST',
@@ -252,6 +253,22 @@ const CreateRoom = ({ theme }) => {
                           />
                           <label className="form-check-label" htmlFor="allowUserThreads">
                             Allow Users to Create Threads
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="isNsfw"
+                            checked={isNsfw}
+                            onChange={(e) => setIsNsfw(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="isNsfw">
+                            NSFW Content
+                            <small className="d-block text-secondary">Mark room as containing adult/mature content</small>
                           </label>
                         </div>
                       </div>

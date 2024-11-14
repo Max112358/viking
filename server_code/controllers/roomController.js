@@ -6,18 +6,38 @@ const db = require('../db');
 const { destroyRoom } = require('../services/roomService');
 
 exports.createRoom = async (req, res) => {
-  //console.log('Create room got hit');
-
-  const { name, description } = req.body;
+  const { name, description, isPublic, allowAnonymous, allowUserThreads, threadLimit, anonymousUniquePerThread, showCountryFlags, isNsfw } =
+    req.body;
   const userId = req.user.userId;
   const thumbnailUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
   try {
-    const roomResult = await db.query('INSERT INTO rooms (name, description, thumbnail_url) VALUES ($1, $2, $3) RETURNING id', [
-      name,
-      description,
-      thumbnailUrl,
-    ]);
+    const roomResult = await db.query(
+      `INSERT INTO rooms (
+        name, 
+        description, 
+        thumbnail_url, 
+        is_public,
+        allow_anonymous,
+        allow_user_threads,
+        thread_limit,
+        anonymous_unique_per_thread,
+        show_country_flags,
+        is_nsfw
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [
+        name,
+        description,
+        thumbnailUrl,
+        isPublic === 'true',
+        allowAnonymous === 'true',
+        allowUserThreads === 'true',
+        threadLimit === 'null' ? null : parseInt(threadLimit),
+        anonymousUniquePerThread === 'true',
+        showCountryFlags === 'true',
+        isNsfw === 'true',
+      ]
+    );
 
     const roomId = roomResult.rows[0].id;
     await db.query('INSERT INTO room_members (room_id, user_id, is_admin) VALUES ($1, $2, $3)', [roomId, userId, true]);

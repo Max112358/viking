@@ -124,6 +124,7 @@ const initializeDatabase = async () => {
         max_files_per_post INTEGER DEFAULT 9,
         anonymous_unique_per_thread BOOLEAN DEFAULT FALSE,
         show_country_flags BOOLEAN DEFAULT FALSE,
+        is_nsfw BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
