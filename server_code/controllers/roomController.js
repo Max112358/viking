@@ -6,8 +6,20 @@ const db = require('../db');
 const { destroyRoom } = require('../services/roomService');
 
 exports.createRoom = async (req, res) => {
-  const { name, description, isPublic, allowAnonymous, allowUserThreads, threadLimit, anonymousUniquePerThread, showCountryFlags, isNsfw } =
-    req.body;
+  const {
+    name,
+    description,
+    isPublic,
+    allowAnonymous,
+    allowUserThreads,
+    threadLimit,
+    anonymousUniquePerThread,
+    showCountryFlags,
+    isNsfw,
+    allowAccountless,
+    postsPerThread,
+  } = req.body;
+
   const userId = req.user.userId;
   const thumbnailUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -23,8 +35,10 @@ exports.createRoom = async (req, res) => {
         thread_limit,
         anonymous_unique_per_thread,
         show_country_flags,
-        is_nsfw
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        is_nsfw,
+        allow_accountless,
+        posts_per_thread
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [
         name,
         description,
@@ -36,6 +50,8 @@ exports.createRoom = async (req, res) => {
         anonymousUniquePerThread === 'true',
         showCountryFlags === 'true',
         isNsfw === 'true',
+        allowAccountless === 'true',
+        postsPerThread === 'null' ? null : parseInt(postsPerThread),
       ]
     );
 

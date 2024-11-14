@@ -10,16 +10,17 @@ const CreateRoom = ({ theme }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isNsfw, setIsNsfw] = useState(false);
 
   // Room settings
   const [isPublic, setIsPublic] = useState(false);
   const [allowAnonymous, setAllowAnonymous] = useState(true);
   const [allowUserThreads, setAllowUserThreads] = useState(true);
   const [threadLimit, setThreadLimit] = useState(500);
-  // New settings
   const [anonymousUniquePerThread, setAnonymousUniquePerThread] = useState(false);
   const [showCountryFlags, setShowCountryFlags] = useState(false);
+  const [allowAccountless, setAllowAccountless] = useState(false);
+  const [postsPerThread, setPostsPerThread] = useState(1000);
+  const [isNsfw, setIsNsfw] = useState(false);
 
   const navigate = useNavigate();
 
@@ -68,6 +69,8 @@ const CreateRoom = ({ theme }) => {
       formData.append('anonymousUniquePerThread', anonymousUniquePerThread);
       formData.append('showCountryFlags', showCountryFlags);
       formData.append('isNsfw', isNsfw);
+      formData.append('allowAccountless', allowAccountless);
+      formData.append('postsPerThread', postsPerThread === 1000 ? null : postsPerThread);
 
       const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'POST',
@@ -226,6 +229,26 @@ const CreateRoom = ({ theme }) => {
                         </div>
                       )}
 
+                      {allowAnonymous && (
+                        <div className="mb-3 ms-4">
+                          <div className="form-check form-switch">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="allowAccountless"
+                              checked={allowAccountless}
+                              onChange={(e) => setAllowAccountless(e.target.checked)}
+                            />
+                            <label className="form-check-label" htmlFor="allowAccountless">
+                              Allow Accountless Posting
+                              <small className="d-block text-secondary">
+                                Allow users to post without an account using their IP address
+                              </small>
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="mb-3">
                         <div className="form-check form-switch">
                           <input
@@ -289,6 +312,29 @@ const CreateRoom = ({ theme }) => {
                             step="10"
                             value={threadLimit}
                             onChange={(e) => setThreadLimit(parseInt(e.target.value))}
+                          />
+                          <span className="small">∞</span>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <label htmlFor="postsPerThread" className="form-label d-flex justify-content-between">
+                          Posts Per Thread Limit
+                          <span className={theme === 'dark' ? 'text-light' : 'text-muted'}>
+                            {postsPerThread === 1000 ? '∞' : postsPerThread}
+                          </span>
+                        </label>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="small">100</span>
+                          <input
+                            type="range"
+                            className="form-range flex-grow-1"
+                            id="postsPerThread"
+                            min="100"
+                            max="1000"
+                            step="100"
+                            value={postsPerThread}
+                            onChange={(e) => setPostsPerThread(parseInt(e.target.value))}
                           />
                           <span className="small">∞</span>
                         </div>

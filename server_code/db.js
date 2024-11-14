@@ -125,6 +125,8 @@ const initializeDatabase = async () => {
         anonymous_unique_per_thread BOOLEAN DEFAULT FALSE,
         show_country_flags BOOLEAN DEFAULT FALSE,
         is_nsfw BOOLEAN DEFAULT FALSE,
+        allow_accountless BOOLEAN DEFAULT FALSE,      -- New column
+        posts_per_thread INTEGER DEFAULT 1000,        -- New column
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -293,6 +295,19 @@ const initializeDatabase = async () => {
       )
     `);
     console.log('Notification settings table ensured');
+
+    // 16. Create new table for temporary accounts
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS temporary_accounts (
+        id SERIAL PRIMARY KEY,
+        ip_address VARCHAR(45) NOT NULL,              -- IPv6 can be up to 45 chars
+        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        UNIQUE(ip_address, room_id)
+      )
+    `);
+    console.log('Temporary accounts table ensured');
 
     console.log('Database initialization completed');
   } catch (err) {
