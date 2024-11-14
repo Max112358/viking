@@ -42,8 +42,9 @@ app.use((error, req, res, next) => {
 // Routes - mount at root level to keep original paths
 app.use('/', require('./routes/auth'));
 app.use('/rooms', require('./routes/rooms'));
-app.use('/users', require('./routes/users'));
+app.use('/channels', require('./routes/channels'));
 app.use('/threads', require('./routes/threads'));
+app.use('/users', require('./routes/users'));
 
 // Start server
 app.listen(PORT, () => {
@@ -64,6 +65,7 @@ project/
   ├─────authController.js
   ├─────roomController.js
   ├─────threadController.js
+  ├─────channelController.js
   ├── middleware/
   ├─────fileUpload.js
   ├─────auth.js

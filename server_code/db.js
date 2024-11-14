@@ -125,8 +125,8 @@ const initializeDatabase = async () => {
         anonymous_unique_per_thread BOOLEAN DEFAULT FALSE,
         show_country_flags BOOLEAN DEFAULT FALSE,
         is_nsfw BOOLEAN DEFAULT FALSE,
-        allow_accountless BOOLEAN DEFAULT FALSE,      -- New column
-        posts_per_thread INTEGER DEFAULT 1000,        -- New column
+        allow_accountless BOOLEAN DEFAULT FALSE,     
+        posts_per_thread INTEGER DEFAULT 1000,      
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -211,11 +211,83 @@ const initializeDatabase = async () => {
     `);
     console.log('Room timeouts table ensured');
 
+    // 10. -- Create channels table (depends on rooms)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS channels (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        position INTEGER DEFAULT 0,
+        is_default BOOLEAN DEFAULT FALSE,
+        is_nsfw BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(room_id, name)
+      )
+    `);
+    console.log('Channels table ensured');
+
+    // 6. Create channel permissions table (depends on channels)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS channel_permissions (
+        channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
+        role_name VARCHAR(20) CHECK (role_name IN ('admin', 'mod', 'janitor')),
+        can_view BOOLEAN DEFAULT TRUE,
+        can_post BOOLEAN DEFAULT TRUE,
+        can_create_threads BOOLEAN DEFAULT TRUE,
+        PRIMARY KEY (channel_id, role_name)
+      )
+    `);
+    console.log('Channel permissions table ensured');
+
+    // Add triggers for channel management
+    await client.query(`
+      CREATE OR REPLACE FUNCTION ensure_default_channel()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        -- Check if this is the first channel in the room
+        IF NOT EXISTS (
+          SELECT 1 FROM channels 
+          WHERE room_id = NEW.room_id 
+          AND id != NEW.id
+        ) THEN
+          NEW.is_default := TRUE;
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER set_default_channel
+      BEFORE INSERT ON channels
+      FOR EACH ROW
+      EXECUTE FUNCTION ensure_default_channel();
+
+      CREATE OR REPLACE FUNCTION prevent_delete_last_channel()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM channels 
+          WHERE room_id = OLD.room_id 
+          AND id != OLD.id
+        ) THEN
+          RAISE EXCEPTION 'Cannot delete the last channel in a room';
+        END IF;
+        RETURN OLD;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER prevent_last_channel_deletion
+      BEFORE DELETE ON channels
+      FOR EACH ROW
+      EXECUTE FUNCTION prevent_delete_last_channel();
+    `);
+    console.log('Channel triggers created');
+
     // 10. Create threads table (depends on rooms and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS threads (
         id SERIAL PRIMARY KEY,
-        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
         subject VARCHAR(255) NOT NULL,
         author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

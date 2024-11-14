@@ -26,7 +26,7 @@ setting for unique identifer for each user per thread if anonymous (they will ge
 setting for flags attached to each post where flag represents IP adress origin country from poster
 setting for NSFW not safe for work
 setting for allowing accountless posting, and corresponding ip to temporary account table in db
-setting for post limit inside threads
+setting for post limit inside threads. threads should lock after reaching the post limit.
 
 users----------------
 create friends list

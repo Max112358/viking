@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../config';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CreateThread = ({ theme }) => {
-  const { roomId } = useParams();
+  const { roomId, channelId } = useParams();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -14,23 +14,41 @@ const CreateThread = ({ theme }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [channels, setChannels] = useState([]);
+  const [selectedChannel, setSelectedChannel] = useState(channelId || '');
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
   const authToken = localStorage.getItem('authToken');
 
-  // Add validation for roomId
   useEffect(() => {
     if (!roomId) {
       navigate('/chat');
+      return;
     }
-  }, [roomId, navigate]);
 
-  // Check if the user is authenticated
-  useEffect(() => {
-    if (!authToken || !userId) {
-      navigate('/login');
-    }
-  }, [authToken, userId, navigate]);
+    const fetchChannels = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/channels/${roomId}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setChannels(data.channels);
+          if (data.channels.length > 0 && !selectedChannel) {
+            setSelectedChannel(data.channels[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching channels:', error);
+        setError('Failed to load channels');
+      }
+    };
+
+    fetchChannels();
+  }, [roomId, authToken, navigate, channelId, selectedChannel]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -46,18 +64,24 @@ const CreateThread = ({ theme }) => {
     setIsLoading(true);
     setError('');
 
+    if (!selectedChannel) {
+      setError('Please select a channel');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('subject', subject);
       formData.append('content', message);
-      //not sure we need to send user id due to it being in the token
-      formData.append('userId', userId); // Always send the userId
+      formData.append('userId', userId);
       formData.append('isAnonymous', isAnonymous);
+      formData.append('channelId', selectedChannel);
       if (image) {
         formData.append('image', image);
       }
 
-      const response = await fetch(`${API_BASE_URL}/threads/${roomId}`, {
+      const response = await fetch(`${API_BASE_URL}/threads/${selectedChannel}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -70,7 +94,6 @@ const CreateThread = ({ theme }) => {
       if (response.ok) {
         navigate(`/chat/rooms/${roomId}`);
       } else if (response.status === 401) {
-        // Handle invalid token case
         localStorage.removeItem('authToken');
         localStorage.removeItem('userId');
         localStorage.removeItem('userEmail');
@@ -103,18 +126,23 @@ const CreateThread = ({ theme }) => {
 
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
-                    <label htmlFor="subject" className="form-label">
-                      Subject
+                    <label htmlFor="channel" className="form-label">
+                      Channel
                     </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="subject"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
+                    <select
+                      className="form-select"
+                      id="channel"
+                      value={selectedChannel}
+                      onChange={(e) => setSelectedChannel(e.target.value)}
                       required
-                      maxLength={100}
-                    />
+                    >
+                      <option value="">Select a channel</option>
+                      {channels.map((channel) => (
+                        <option key={channel.id} value={channel.id}>
+                          {channel.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="mb-3">
