@@ -21,90 +21,108 @@ const ContextMenu = ({ x, y, onClose, children }) => (
 
 const ChatInterface = ({ theme }) => {
   const [rooms, setRooms] = useState([]);
+  const [channels, setChannels] = useState([]);
   const [threads, setThreads] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedChannel, setSelectedChannel] = useState(null);
   const [selectedThread, setSelectedThread] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showRoomSidebar, setShowRoomSidebar] = useState(true);
-  const [showThreadSidebar, setShowThreadSidebar] = useState(true);
+  const [showChannelSidebar, setShowChannelSidebar] = useState(true);
   const [contextMenu, setContextMenu] = useState(null);
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail');
   const userId = localStorage.getItem('userId');
 
   // Move fetchRooms to useCallback to prevent dependency issues
- // First, wrap handleInvalidToken in useCallback
-const handleInvalidToken = useCallback(() => {
-  // Remove the token from local storage
-  localStorage.clear();
+  // First, wrap handleInvalidToken in useCallback
+  const handleInvalidToken = useCallback(() => {
+    localStorage.clear();
+    navigate('/login');
+  }, [navigate]);
 
-  // Navigate the user to the login page
-  navigate('/');
-}, [navigate]); // Add navigate as a dependency
-
-// Then update fetchRooms to include handleInvalidToken in its dependencies
-const fetchRooms = useCallback(async () => {
-  try {
-    const userId = localStorage.getItem('userId');
-    const token = localStorage.getItem('authToken');
-
-    if (!userId || !token) {
-      handleInvalidToken();
-      return;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.status === 401) {
-      handleInvalidToken();
-      return;
-    }
-
-    const data = await response.json();
-    setRooms(data.rooms || []);
-  } catch (error) {
-    console.error('Error fetching rooms:', error);
-  }
-}, [handleInvalidToken]); // Add handleInvalidToken as a dependency
-
-  useEffect(() => {
-    if (!userEmail) {
-      navigate('/');
-      return;
-    }
-
-    fetchRooms();
-  }, [userEmail, navigate, fetchRooms]); // Added fetchRooms to dependency array
-
-
-  const fetchThreads = async (roomId) => {
+  // Then update fetchRooms to include handleInvalidToken in its dependencies
+  const fetchRooms = useCallback(async () => {
     try {
+      const userId = localStorage.getItem('userId');
       const token = localStorage.getItem('authToken');
-  
-      const response = await fetch(`${API_BASE_URL}/threads/${roomId}`, {
+
+      if (!userId || !token) {
+        handleInvalidToken();
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/rooms`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-  
+
       if (response.status === 401) {
         handleInvalidToken();
         return;
       }
-  
+
       const data = await response.json();
-      // Debug log
-      console.log('Received thread data:', data);
+      setRooms(data.rooms || []);
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+    }
+  }, [handleInvalidToken]); // Add handleInvalidToken as a dependency
+
+  //make sure the user is authorized to do this
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken');
+
+    if (!authToken) {
+      handleInvalidToken();
+      return;
+    }
+
+    fetchRooms(); // This will fail with 401 if token is invalid
+  }, [handleInvalidToken, fetchRooms]);
+
+  const fetchChannels = async (roomId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/channels/${roomId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleInvalidToken();
+        return;
+      }
+
+      const data = await response.json();
+      setChannels(data.channels || []);
+    } catch (error) {
+      console.error('Error fetching channels:', error);
+    }
+  };
+
+  const fetchThreads = async (channelId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/threads/${channelId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleInvalidToken();
+        return;
+      }
+
+      const data = await response.json();
       setThreads(data.threads || []);
     } catch (error) {
       console.error('Error fetching threads:', error);
     }
   };
-
 
   useEffect(() => {
     const handleResize = () => {
@@ -125,19 +143,26 @@ const fetchRooms = useCallback(async () => {
 
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
+    setSelectedChannel(null);
     setSelectedThread(null);
-    fetchThreads(room.room_id);
+    fetchChannels(room.room_id);
     if (isMobile) {
       setShowRoomSidebar(false);
-      setShowThreadSidebar(true);
+      setShowChannelSidebar(true);
+    }
+  };
+
+  const handleChannelSelect = (channel) => {
+    setSelectedChannel(channel);
+    setSelectedThread(null);
+    fetchThreads(channel.id);
+    if (isMobile) {
+      setShowChannelSidebar(false);
     }
   };
 
   const handleThreadSelect = (thread) => {
     setSelectedThread(thread);
-    if (isMobile) {
-      setShowThreadSidebar(false);
-    }
   };
 
   const handleContextMenu = useCallback((e, item, type = 'room') => {
@@ -185,6 +210,40 @@ const fetchRooms = useCallback(async () => {
     }
   };
 
+  const handleCreateRoom = () => {
+    navigate('/create-room');
+  };
+
+  const handleCreateThread = () => {
+    if (selectedChannel) {
+      navigate(`/create-thread/${selectedRoom.room_id}/${selectedChannel.id}`);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
+  };
+
+  const getRoomDisplay = (room) => {
+    if (room.thumbnail_url) {
+      const fullUrl = `${API_BASE_URL}${room.thumbnail_url}`;
+      return (
+        <img
+          src={fullUrl}
+          alt={room.name}
+          className="w-100 h-100 rounded-circle object-fit-cover"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.style.display = 'none';
+            e.target.parentElement.textContent = room.name.charAt(0).toUpperCase();
+          }}
+        />
+      );
+    }
+    return room.name.charAt(0).toUpperCase();
+  };
+
   const handleLeaveRoom = async (roomId) => {
     try {
       const userId = localStorage.getItem('userId');
@@ -219,290 +278,170 @@ const fetchRooms = useCallback(async () => {
     }
   };
 
-  const getRoomDisplay = (room) => {
-    if (room.thumbnail_url) {
-      const fullUrl = `${API_BASE_URL}${room.thumbnail_url}`;
-      return (
-        <img
-          src={fullUrl}
-          alt={room.name}
-          className="w-100 h-100 rounded-circle object-fit-cover"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.style.display = 'none';
-            e.target.parentElement.textContent = room.name.charAt(0).toUpperCase();
-          }}
-        />
-      );
-    }
-    return room.name.charAt(0).toUpperCase();
-  };
-
-  const handleCreateRoom = () => {
-    navigate('/create-room');
-  };
-
-  const handleCreateThread = () => {
-    if (selectedRoom) {
-      navigate(`/create-thread/${selectedRoom.room_id}`);
-    }
-  };
-
-  const handleLogout = () => {
-    // Remove the token from local storage
-    //localStorage.removeItem('authToken');
-    //localStorage.removeItem('userId');
-    //localStorage.removeItem('userEmail');
-
-    // Clear all items from local storage
-    localStorage.clear();
-
-    // Navigate the user to the login page
-    navigate('/');
-  };
-
   const getBaseClasses = (isDark) =>
     `${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} 
      ${isDark ? 'border-secondary' : 'border-light'}`.trim();
 
   const ROOM_BUTTON_SIZE = 38;
-
-  const getRoomSidebarWidth = () => {
-    const padding = 16; // optional padding or margins on each side
-    return ROOM_BUTTON_SIZE + padding;
-  };
-
-  const getThreadSidebarWidth = () => {
-    //const maxThreadSubjectLength = Math.max(...threads.map((thread) => thread.subject.length));
-    //return Math.max(150, 24 + maxThreadSubjectLength * 8); // Adjust width based on longest thread subject
-    return 280; // Fixed width for better formatting of thread cards
-  };
-
-  const getThreadTitleStyle = (roomName) => {
-    const sidebarWidth = getThreadSidebarWidth();
-    const words = roomName.split(' ');
-    //const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
-    //const wordsPerLine = Math.ceil(words.length / 3); // Distribute words across 3 lines
-    const targetWidth = sidebarWidth * 0.9; // 90% of sidebar width
-
-    // Calculate font size based on longest word to ensure it fits
-    const longestWordLength = Math.max(...words.map((word) => word.length));
-    const pixelsPerChar = targetWidth / longestWordLength;
-    const fontSize = Math.min(16, Math.max(12, pixelsPerChar * 1.2));
-
-    return {
-      fontSize: `${fontSize}px`,
-      lineHeight: 1.4,
-      padding: '2px 0',
-      display: '-webkit-box',
-      WebkitLineClamp: 3,
-      WebkitBoxOrient: 'vertical',
-      overflow: 'hidden',
-      maxHeight: `${fontSize * 1.4 * 3}px`, // 3 lines of text
-      wordBreak: 'break-word',
-    };
-  };
-
-  const roomSidebarClasses = `
-  position-fixed 
-  start-0 
-  top-0  
-  h-100 
-  ${showRoomSidebar ? '' : 'translate-x-[-100%]'}
-  border-end
-  ${getBaseClasses(theme === 'dark')}
-  transition-transform
-  duration-300
-  `.trim();
-
-  const threadSidebarClasses = `
-  position-fixed 
-  h-100 
-  ${showThreadSidebar ? '' : 'translate-x-[-100%]'}
-  border-end
-  ${getBaseClasses(theme === 'dark')}
-  transition-transform
-  duration-300
-  `.trim();
+  const SIDEBAR_WIDTH = 280;
 
   const buttonThemeClasses = theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark';
   const selectedButtonClasses = theme === 'dark' ? 'btn-primary' : 'btn-primary';
 
   return (
     <div className={`vh-100 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
-      {/* Mobile buttons with smaller size */}
+      {/* Mobile Toggle Buttons */}
       {isMobile && (
         <>
-          <button
-            onClick={() => setShowRoomSidebar(!showRoomSidebar)}
-            className="btn position-fixed top-0 start-0 m-2 z-3" // Reduced margin
-          >
-            <i className="bi bi-list fs-5"></i> {/* Reduced from fs-4 */}
+          <button onClick={() => setShowRoomSidebar(!showRoomSidebar)} className="btn position-fixed top-0 start-0 m-2 z-3">
+            <i className="bi bi-list fs-5"></i>
           </button>
           {selectedRoom && (
             <button
-              onClick={() => setShowThreadSidebar(!showThreadSidebar)}
-              className="btn position-fixed top-0 start-0 m-2 z-3" // Reduced margin
-              style={{ left: '64px' }} // Reduced from 80px
+              onClick={() => setShowChannelSidebar(!showChannelSidebar)}
+              className="btn position-fixed top-0 start-0 m-2 z-3"
+              style={{ left: '64px' }}
             >
-              <i className="bi bi-chat-left-text fs-5"></i> {/* Reduced from fs-4 */}
+              <i className="bi bi-chat-left-text fs-5"></i>
             </button>
           )}
         </>
       )}
 
-      {/* Rooms Sidebar with dynamic width */}
-      <div className={roomSidebarClasses} style={{ width: `${getRoomSidebarWidth()}px`, zIndex: 2 }}>
+      {/* Rooms Sidebar */}
+      <div
+        className={`position-fixed start-0 top-0 h-100 border-end ${showRoomSidebar ? '' : 'translate-x-[-100%]'} ${getBaseClasses(
+          theme === 'dark'
+        )} transition-transform duration-300`}
+        style={{ width: `${ROOM_BUTTON_SIZE + 16}px`, zIndex: 2 }}
+      >
         <div className="d-flex flex-column p-2 gap-2">
           {rooms.map((room) => (
             <button
               key={room.room_id}
               onClick={() => handleRoomSelect(room)}
               onContextMenu={(e) => handleContextMenu(e, room)}
-              className={`
-                btn 
-                rounded-circle 
-                d-flex 
-                align-items-center 
-                justify-content-center
-                p-0
-                overflow-hidden
-                ${selectedRoom?.room_id === room.room_id ? selectedButtonClasses : buttonThemeClasses}
-              `}
-              style={{
-                width: `${ROOM_BUTTON_SIZE}px`,
-                height: `${ROOM_BUTTON_SIZE}px`,
-              }} // Use the constant here
+              className={`btn rounded-circle d-flex align-items-center justify-content-center p-0 overflow-hidden ${
+                selectedRoom?.room_id === room.room_id ? selectedButtonClasses : buttonThemeClasses
+              }`}
+              style={{ width: `${ROOM_BUTTON_SIZE}px`, height: `${ROOM_BUTTON_SIZE}px` }}
               title={room.name}
             >
               {getRoomDisplay(room)}
             </button>
           ))}
-
           <button
             onClick={handleCreateRoom}
             className="btn btn-success rounded-circle d-flex align-items-center justify-content-center"
-            style={{
-              width: `${ROOM_BUTTON_SIZE}px`,
-              height: `${ROOM_BUTTON_SIZE}px`,
-            }} // Use the constant here
+            style={{ width: `${ROOM_BUTTON_SIZE}px`, height: `${ROOM_BUTTON_SIZE}px` }}
             title="Create New Room"
           >
-            <i className="bi bi-plus"></i> {/* Changed to icon only */}
+            <i className="bi bi-plus"></i>
           </button>
         </div>
       </div>
 
-      {/* Threads Sidebar with dynamic width */}
+      {/* Channels Sidebar */}
       {selectedRoom && (
         <div
-          className={threadSidebarClasses}
+          className={`position-fixed h-100 border-end ${showChannelSidebar ? '' : 'translate-x-[-100%]'} ${getBaseClasses(
+            theme === 'dark'
+          )} transition-transform duration-300`}
           style={{
-            width: `${getThreadSidebarWidth()}px`,
-            left: showRoomSidebar ? `${getRoomSidebarWidth()}px` : '0',
+            width: `${SIDEBAR_WIDTH}px`,
+            left: showRoomSidebar ? `${ROOM_BUTTON_SIZE + 16}px` : '0',
             zIndex: 1,
           }}
         >
-          <div className="p-2">
+          <div className="p-3">
+            <h6 className="mb-3">{selectedRoom.name}</h6>
             <div className="d-flex flex-column gap-2">
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="m-0" style={getThreadTitleStyle(selectedRoom.name)}>
-                  {selectedRoom.name}
-                </h6>
-              </div>
-              <button
-                onClick={handleCreateThread}
-                className="btn btn-success w-100 d-flex align-items-center justify-content-center"
-                style={{
-                  height: '30px',
-                  //borderRadius: '50%', //makes it a circle
-                }}
-                title="Create New Thread"
-              >
-                <i className="bi bi-plus"></i> {/* Changed to icon only */}
-              </button>
-              <div className="d-flex flex-column gap-2">
-                
-                {threads.map((thread) => (
-                  //console.log('Thread image URL:', thread.first_post_image),
-
-                  <button
-                    key={thread.id}
-                    onClick={() => handleThreadSelect(thread)}
-                    onContextMenu={(e) => handleContextMenu(e, thread, 'thread')}
-                    className={`
-                      btn 
-                      p-2
-                      text-start 
-                      ${selectedThread?.id === thread.id ? selectedButtonClasses : buttonThemeClasses}
-                    `}
-                    style={{
-                      minHeight: '80px',
-                      display: 'flex',
-                      gap: '8px',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    {thread.first_post_image ? (
-                      <img
-                        src={thread.first_post_image.startsWith('http') 
-                          ? thread.first_post_image 
-                          : `${API_BASE_URL}${thread.first_post_image}`}
-                        alt=""
-                        className="rounded"
-                        style={{
-                          width: '60px',
-                          height: '60px',
-                          objectFit: 'cover',
-                          flexShrink: 0,
-                        }}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.style.display = 'none';
-                          // Replace with gray box on error
-                          e.target.parentElement.innerHTML = `
-                            <div
-                              class="rounded bg-secondary"
-                              style="width: 60px; height: 60px; flex-shrink: 0;"
-                            ></div>
-                          `;
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className="rounded bg-secondary"
-                        style={{
-                          width: '60px',
-                          height: '60px',
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
-                    <div className="overflow-hidden">
-                      <div className="fw-medium text-truncate mb-1" style={{ fontSize: '14px' }}>
-                        {thread.subject}
-                      </div>
-                      <div
-                        className="small opacity-75"
-                        style={{
-                          fontSize: '12px',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          lineHeight: '1.2',
-                        }}
-                      >
-                        {thread.first_post_content}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {channels.map((channel) => (
+                <button
+                  key={channel.id}
+                  onClick={() => handleChannelSelect(channel)}
+                  className={`btn text-start p-2 ${selectedChannel?.id === channel.id ? selectedButtonClasses : buttonThemeClasses}`}
+                >
+                  <div className="d-flex align-items-center">
+                    <i className="bi bi-hash me-2"></i>
+                    <span>{channel.name}</span>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
       )}
+
+      {/* Main Content Area */}
+      <div
+        className="h-100 overflow-hidden"
+        style={{
+          marginLeft: showRoomSidebar
+            ? selectedRoom
+              ? `${ROOM_BUTTON_SIZE + 16 + SIDEBAR_WIDTH}px`
+              : `${ROOM_BUTTON_SIZE + 16}px`
+            : showChannelSidebar && selectedRoom
+            ? `${SIDEBAR_WIDTH}px`
+            : '0',
+          transition: 'margin-left 0.3s ease-in-out',
+        }}
+      >
+        {selectedChannel ? (
+          <div className="h-100 d-flex flex-column">
+            <div className="p-3 border-bottom">
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">#{selectedChannel.name}</h5>
+                <button onClick={handleCreateThread} className="btn btn-success">
+                  New Thread
+                </button>
+              </div>
+            </div>
+            <div className="flex-grow-1 overflow-auto p-3">
+              <div className="d-flex flex-column gap-3">
+                {threads.map((thread) => (
+                  <div
+                    key={thread.id}
+                    className={`card ${theme === 'dark' ? 'bg-mid-dark' : ''}`}
+                    onClick={() => handleThreadSelect(thread)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="card-body">
+                      <div className="d-flex gap-3">
+                        {thread.first_post_image && (
+                          <img
+                            src={`${API_BASE_URL}${thread.first_post_image}`}
+                            alt=""
+                            className="rounded"
+                            style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                          />
+                        )}
+                        <div>
+                          <h6 className="card-title">{thread.subject}</h6>
+                          <p className="card-text small">{thread.first_post_content}</p>
+                          <div className="text-muted small">
+                            {thread.author_email ? `Posted by ${thread.author_email}` : 'Anonymous'} ·{' '}
+                            {new Date(thread.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-100 d-flex align-items-center justify-content-center">
+            <p>{selectedRoom ? 'Select a channel to view threads' : 'Select a room to view channels'}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Logout Button */}
+      <button className={`btn btn-sm btn-outline-danger position-fixed top-0 end-0 m-2 z-3 ${buttonThemeClasses}`} onClick={handleLogout}>
+        <i className="bi bi-box-arrow-right"></i> Logout
+      </button>
 
       {/* Context Menu */}
       {contextMenu && (
@@ -513,79 +452,9 @@ const fetchRooms = useCallback(async () => {
                 Leave Room
               </button>
             )}
-            {contextMenu.type === 'thread' && (
-              <button
-                className={`btn btn-link w-100 text-start px-3 ${contextMenu.item.author_id === userId ? 'text-danger' : 'text-muted'}`}
-                onClick={() => {
-                  if (contextMenu.item.author_id === userId) {
-                    handleDeleteThread(contextMenu.item.id);
-                  }
-                }}
-                disabled={contextMenu.item.author_id !== userId}
-              >
-                Delete Thread {contextMenu.item.author_id !== userId ? '(must be author)' : ''}
-              </button>
-            )}
           </div>
         </ContextMenu>
       )}
-
-      {/* Main Chat Area */}
-      <div
-        className="h-100 overflow-hidden"
-        style={{
-          marginLeft: showRoomSidebar
-            ? selectedRoom
-              ? `${getRoomSidebarWidth() + getThreadSidebarWidth()}px`
-              : `${getRoomSidebarWidth()}px`
-            : showThreadSidebar && selectedRoom
-            ? `${getThreadSidebarWidth()}px`
-            : '0',
-          transition: 'margin-left 0.3s ease-in-out',
-        }}
-      >
-        {selectedThread ? (
-          <div className="h-100 p-3">
-            <h2 className={`fs-4 fw-bold mb-3 ${theme === 'dark' ? 'text-light' : 'text-dark'}`}>{selectedThread.subject}</h2>
-            <div className={`h-100 rounded ${theme === 'dark' ? 'bg-secondary' : 'bg-light'}`}>
-              <div className="p-3">Chat messages will appear here</div>
-            </div>
-          </div>
-        ) : (
-          <div className="h-100 d-flex align-items-center justify-content-center">
-            <p className={theme === 'dark' ? 'text-light' : 'text-dark'}>
-              {selectedRoom ? 'Select a thread to start chatting' : 'Select a room to view threads'}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Logout button */}
-      <button className={`btn btn-sm btn-outline-danger position-fixed top-0 end-0 m-2 z-3 ${buttonThemeClasses}`} onClick={handleLogout}>
-        <i className="bi bi-box-arrow-right"></i> Logout
-      </button>
-
-      <style>
-        {`
-          .translate-x-[-100%] {
-            transform: translateX(-100%);
-          }
-          
-          .transition-transform {
-            transition: transform 0.3s ease-in-out;
-          }
-          
-          .duration-300 {
-            transition-duration: 300ms;
-          }
-          
-          @media (max-width: 768px) {
-            .position-fixed {
-              z-index: 1030;
-            }
-          }
-        `}
-      </style>
     </div>
   );
 };
