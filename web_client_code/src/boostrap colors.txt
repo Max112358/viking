@@ -1,0 +1,53 @@
+------------------------------------------------
+Background Colors
+Bootstrap's background utility classes are prefixed with bg-:
+
+bg-primary
+bg-secondary
+bg-success
+bg-danger
+bg-warning
+bg-info
+bg-light
+bg-dark
+bg-white
+bg-transparent
+
+----------------------------------------------------
+Text Colors
+These text color classes are prefixed with text-:
+
+text-primary
+text-secondary
+text-success
+text-danger
+text-warning
+text-info
+text-light
+text-dark
+text-body (default text color)
+text-muted
+text-white
+text-black-50
+text-white-50
+
+----------------------------------------------------
+Border Colors
+These border classes are prefixed with border-:
+
+border-primary
+border-secondary
+border-success
+border-danger
+border-warning
+border-info
+border-light
+border-dark
+border-white
+
+-------------------------------------------------
+Additional Color Classes
+Bootstrap also includes classes for alerts and badges, following the same color scheme:
+
+Alerts: alert-primary, alert-secondary, etc.
+Badges: badge-primary, badge-secondary, etc.

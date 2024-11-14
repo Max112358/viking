@@ -1,5 +1,3 @@
-// part of frontend
-// components/CreateRoom.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
@@ -12,14 +10,30 @@ const CreateRoom = ({ theme }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Room settings
+  const [isPublic, setIsPublic] = useState(false);
+  const [allowAnonymous, setAllowAnonymous] = useState(true);
+  const [allowUserThreads, setAllowUserThreads] = useState(true);
+  const [threadLimit, setThreadLimit] = useState(500);
+  // New settings
+  const [anonymousUniquePerThread, setAnonymousUniquePerThread] = useState(false);
+  const [showCountryFlags, setShowCountryFlags] = useState(false);
+
   const navigate = useNavigate();
 
-  // Handle image file selection
+  const getThreadLimitDisplay = (value) => {
+    return value === 500 ? '∞' : value;
+  };
+
+  const getThreadLimitForAPI = (value) => {
+    return value === 500 ? null : value;
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setThumbnailImage(file);
-      // Create a preview URL for the selected image
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
@@ -31,22 +45,28 @@ const CreateRoom = ({ theme }) => {
     setError('');
 
     try {
-      // Retrieve the JWT token from local storage
       const authToken = localStorage.getItem('authToken');
 
-      // If there's no token or the token is invalid, navigate to the login page
       if (!authToken || authToken === 'invalid') {
         navigate('/login');
         return;
       }
 
-      // Create form data to handle file upload
       const formData = new FormData();
       formData.append('name', roomName);
       formData.append('description', description);
       if (thumbnailImage) {
         formData.append('thumbnail', thumbnailImage);
       }
+
+      // Add room settings to formData
+      formData.append('isPublic', isPublic);
+      formData.append('allowAnonymous', allowAnonymous);
+      formData.append('allowUserThreads', allowUserThreads);
+      formData.append('threadLimit', getThreadLimitForAPI(threadLimit));
+      // Add new settings
+      formData.append('anonymousUniquePerThread', anonymousUniquePerThread);
+      formData.append('showCountryFlags', showCountryFlags);
 
       const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'POST',
@@ -59,9 +79,8 @@ const CreateRoom = ({ theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        navigate('/chat'); // Navigate back to chat interface
+        navigate('/chat');
       } else {
-        // If the server responds with a 401 Unauthorized status, the token is likely invalid
         if (response.status === 401) {
           localStorage.setItem('authToken', 'invalid');
           navigate('/login');
@@ -149,6 +168,115 @@ const CreateRoom = ({ theme }) => {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  <div className={`card mb-3 ${theme === 'dark' ? 'bg-secondary' : ''}`}>
+                    <div className={`card-header ${theme === 'dark' ? 'bg-high-dark text-light border-secondary' : ''}`}>
+                      <h5 className="mb-0">Room Settings</h5>
+                    </div>
+                    <div className={`card-body ${theme === 'dark' ? 'bg-high-dark text-light' : ''}`}>
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="isPublic"
+                            checked={isPublic}
+                            onChange={(e) => setIsPublic(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="isPublic">
+                            Public Room
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="allowAnonymous"
+                            checked={allowAnonymous}
+                            onChange={(e) => setAllowAnonymous(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="allowAnonymous">
+                            Allow Anonymous Posts
+                          </label>
+                        </div>
+                      </div>
+
+                      {allowAnonymous && (
+                        <div className="mb-3 ms-4">
+                          <div className="form-check form-switch">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="anonymousUniquePerThread"
+                              checked={anonymousUniquePerThread}
+                              onChange={(e) => setAnonymousUniquePerThread(e.target.checked)}
+                            />
+                            <label className="form-check-label" htmlFor="anonymousUniquePerThread">
+                              Unique Anonymous IDs Per Thread
+                              <small className="d-block text-secondary">
+                                Each anonymous user gets a different random ID in each thread
+                              </small>
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="showCountryFlags"
+                            checked={showCountryFlags}
+                            onChange={(e) => setShowCountryFlags(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="showCountryFlags">
+                            Show Country Flags
+                            <small className="d-block text-secondary">Display country flag based on poster's IP address</small>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="allowUserThreads"
+                            checked={allowUserThreads}
+                            onChange={(e) => setAllowUserThreads(e.target.checked)}
+                          />
+                          <label className="form-check-label" htmlFor="allowUserThreads">
+                            Allow Users to Create Threads
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <label htmlFor="threadLimit" className="form-label d-flex justify-content-between">
+                          Thread Limit
+                          <span className={theme === 'dark' ? 'text-light' : 'text-muted'}>{getThreadLimitDisplay(threadLimit)}</span>
+                        </label>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="small">10</span>
+                          <input
+                            type="range"
+                            className="form-range flex-grow-1"
+                            id="threadLimit"
+                            min="10"
+                            max="500"
+                            step="10"
+                            value={threadLimit}
+                            onChange={(e) => setThreadLimit(parseInt(e.target.value))}
+                          />
+                          <span className="small">∞</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="d-grid gap-2">

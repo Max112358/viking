@@ -1,0 +1,40 @@
+viking to do list
+
+threads----------
+fix thread deletion for author and admin
+add ability to lock a thread
+add ability to pin a thread
+make a get authored threads endpoint
+get chat working in threads
+get video working
+allow uploads of any file type, up to 9 at once
+
+rooms-------------
+allow anonymity toggle
+make public toggle
+create a settings page
+make thread limit slider
+invite other users to rooms
+make i_admin getter and setter
+make is_mod and is_janitor getters and setters
+make is anyone allowed to make threads toggle
+list of user aliases so they can change their name for that room only
+add search feature
+notification settings
+powers available to mods and janitors to pin, move, lock, delete, ban, timeout, edit delete, and role management (for admins) etc
+setting for unique identifer for each user per thread if anonymous (they will get a new randomized ID in each thread) maybe based on hashing somehow
+setting for flags attached to each post where flag represents IP adress origin country from poster
+
+users----------------
+create friends list
+send friend requests
+create username (changeable)
+create unique userID for invites (based off username but unique) with QR code
+create user avatar photo
+create notification system for @messages
+
+server-----------------
+get this pushed to server
+get autodeploy to server working
+get web sockets/persistent comms working
+make standalone client program

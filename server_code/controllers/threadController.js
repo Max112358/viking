@@ -68,12 +68,18 @@ exports.getThreads = async (req, res) => {
       `
       WITH FirstPosts AS (
         SELECT DISTINCT ON (thread_id)
-          thread_id,
-          content as first_post_content,
-          image_url as first_post_image,
-          created_at
-        FROM posts
-        ORDER BY thread_id, created_at ASC
+          p.thread_id,
+          p.content as first_post_content,
+          p.created_at,
+          (
+            SELECT fa.file_url 
+            FROM file_attachments fa 
+            WHERE fa.post_id = p.id 
+            ORDER BY fa.uploaded_at ASC 
+            LIMIT 1
+          ) as first_post_image
+        FROM posts p
+        ORDER BY p.thread_id, p.created_at ASC
       )
       SELECT 
         t.id,
@@ -86,7 +92,7 @@ exports.getThreads = async (req, res) => {
           ELSE u.email 
         END as author_email,
         COUNT(p.id) as post_count,
-        fp.first_post_content,
+        COALESCE(fp.first_post_content, '') as first_post_content,
         fp.first_post_image
       FROM threads t
       LEFT JOIN users u ON t.author_id = u.id
@@ -109,7 +115,13 @@ exports.getThreads = async (req, res) => {
       [roomId, limit, offset]
     );
 
-    res.json({ threads: threads.rows });
+    res.json({
+      threads: threads.rows.map((thread) => ({
+        ...thread,
+        first_post_content: thread.first_post_content || '',
+        first_post_image: thread.first_post_image || null,
+      })),
+    });
   } catch (error) {
     console.error('Error fetching threads:', error);
     res.status(500).json({ message: 'Error fetching threads' });

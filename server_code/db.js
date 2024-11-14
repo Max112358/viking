@@ -72,7 +72,7 @@ async function runMigrations() {
 const initializeDatabase = async () => {
   const client = await pool.connect();
   try {
-    // Create users table
+    // 1. First create users table (no dependencies)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -83,7 +83,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Users table ensured');
 
-    // Create user profiles table
+    // 2. Create user profiles table (depends on users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_profiles (
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -96,7 +96,7 @@ const initializeDatabase = async () => {
     `);
     console.log('User profiles table ensured');
 
-    // Create friendships table
+    // 3. Create friendships table (depends on users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS friendships (
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -109,7 +109,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Friendships table ensured');
 
-    // Create rooms table with all settings - Added new toggles and limits
+    // 4. Create rooms table (no dependencies)
     await client.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id SERIAL PRIMARY KEY,
@@ -122,12 +122,14 @@ const initializeDatabase = async () => {
         allow_user_threads BOOLEAN DEFAULT TRUE,
         max_file_size INTEGER DEFAULT 5242880,
         max_files_per_post INTEGER DEFAULT 9,
+        anonymous_unique_per_thread BOOLEAN DEFAULT FALSE,
+        show_country_flags BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('Rooms table ensured');
 
-    // Create room_members junction table with expanded roles
+    // 5. Create room_members table (depends on rooms and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_members (
         room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
@@ -142,7 +144,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Room members table ensured');
 
-    // Create room_role_permissions table to define powers for each role
+    // 6. Create room_role_permissions table (depends on rooms)
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_role_permissions (
         room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
@@ -161,7 +163,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Room role permissions table ensured');
 
-    // Create room invites table
+    // 7. Create room_invites table (depends on rooms and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_invites (
         id SERIAL PRIMARY KEY,
@@ -175,7 +177,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Room invites table ensured');
 
-    // Create room bans table
+    // 8. Create room_bans table (depends on rooms and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_bans (
         id SERIAL PRIMARY KEY,
@@ -191,7 +193,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Room bans table ensured');
 
-    // Create room timeouts table
+    // 9. Create room_timeouts table (depends on rooms and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS room_timeouts (
         id SERIAL PRIMARY KEY,
@@ -206,7 +208,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Room timeouts table ensured');
 
-    // Create threads table - Added is_locked since it wasn't there before
+    // 10. Create threads table (depends on rooms and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS threads (
         id SERIAL PRIMARY KEY,
@@ -222,20 +224,35 @@ const initializeDatabase = async () => {
     `);
     console.log('Threads table ensured');
 
-    // Create posts table
+    // 11. Create anonymous_identifiers table (depends on threads and users)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS anonymous_identifiers (
+        id SERIAL PRIMARY KEY,
+        thread_id INTEGER REFERENCES threads(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        anonymous_id VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(thread_id, user_id)
+      )
+    `);
+    console.log('Anonymous identifiers table ensured');
+
+    // 12. Create posts table (depends on threads and users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
         thread_id INTEGER REFERENCES threads(id) ON DELETE CASCADE,
         author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         content TEXT NOT NULL,
+        country_code CHAR(2),
+        country_name VARCHAR(100),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('Posts table ensured');
 
-    // Create file attachments table
+    // 13. Create file_attachments table (depends on posts)
     await client.query(`
       CREATE TABLE IF NOT EXISTS file_attachments (
         id SERIAL PRIMARY KEY,
@@ -249,7 +266,7 @@ const initializeDatabase = async () => {
     `);
     console.log('File attachments table ensured');
 
-    // Create notifications table
+    // 14. Create notifications table (depends on users)
     await client.query(`
       CREATE TABLE IF NOT EXISTS notifications (
         id SERIAL PRIMARY KEY,
@@ -263,7 +280,7 @@ const initializeDatabase = async () => {
     `);
     console.log('Notifications table ensured');
 
-    // Create notification settings table
+    // 15. Create notification_settings table (depends on users and rooms)
     await client.query(`
       CREATE TABLE IF NOT EXISTS notification_settings (
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
