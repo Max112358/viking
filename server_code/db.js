@@ -314,6 +314,7 @@ const initializeDatabase = async () => {
       END;
       $$ LANGUAGE plpgsql;
 
+      DROP TRIGGER IF EXISTS set_default_channel ON channels;
       CREATE TRIGGER set_default_channel
       BEFORE INSERT ON channels
       FOR EACH ROW
@@ -333,6 +334,7 @@ const initializeDatabase = async () => {
       END;
       $$ LANGUAGE plpgsql;
 
+      DROP TRIGGER IF EXISTS prevent_last_channel_deletion ON channels;
       CREATE TRIGGER prevent_last_channel_deletion
       BEFORE DELETE ON channels
       FOR EACH ROW

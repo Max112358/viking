@@ -4,7 +4,15 @@ const express = require('express');
 const router = express.Router();
 const authenticateToken = require('../middleware/auth');
 const { upload } = require('../middleware/fileUpload');
-const { createRoom, getUserRooms, joinRoom, leaveRoom, deleteRoom } = require('../controllers/roomController');
+const {
+  createRoom,
+  getUserRooms,
+  joinRoom,
+  leaveRoom,
+  deleteRoom,
+  checkRoomUrlAvailability, // Add this import
+  getRoomByUrl, // Add this import
+} = require('../controllers/roomController');
 
 // Protect all routes with authentication
 router.use(authenticateToken);

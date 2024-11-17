@@ -53,8 +53,17 @@ function App() {
 //frontend file structure DO NOT DELETE THIS
 /*
 src/
+  ├── hooks/
+  |   ├─ useFetch.js
+  |   └─ useResponsive.js
   ├── components/
-  |   ├─ ChatInterface.js
+  |   ├─ chat/
+  |   |  ├─ ChatInterface.js
+  |   |  ├─ ContextMenu.js
+  |   |  ├─ RoomSidebar.js
+  |   |  ├─ ThreadList.js
+  |   |  └─ ChannelSidebar.js
+  |   ├─ ChatInterface.js (old version)
   |   ├─ CreateRoom.js
   |   ├─ CreateChannel.js
   |   ├─ CreateThread.js

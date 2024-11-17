@@ -16,6 +16,12 @@ const CreateRoom = ({ theme }) => {
   const [urlAvailable, setUrlAvailable] = useState(null);
   const [isCheckingUrl, setIsCheckingUrl] = useState(false);
   const [urlError, setUrlError] = useState('');
+  const [urlCheckState, setUrlCheckState] = useState({
+    isChecking: false,
+    isAvailable: null,
+    message: '',
+    showFeedback: false,
+  });
 
   // Room settings
   const [isPublic, setIsPublic] = useState(false);
@@ -44,30 +50,102 @@ const CreateRoom = ({ theme }) => {
   // Check URL availability with debouncing
   const checkUrlAvailability = useCallback(async (value) => {
     if (!value || value.length < 3) {
-      setUrlAvailable(null);
-      setUrlError('URL must be at least 3 characters long');
+      setUrlCheckState({
+        isChecking: false,
+        isAvailable: null,
+        message: 'URL must be at least 3 characters long',
+        showFeedback: true,
+      });
       return;
     }
 
-    setIsCheckingUrl(true);
+    setUrlCheckState((prev) => ({
+      ...prev,
+      isChecking: true,
+      showFeedback: true,
+    }));
+
     try {
-      const response = await fetch(`${API_BASE_URL}/rooms/check-url/${value}`);
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/rooms/check-url/${value}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
       const data = await response.json();
 
       if (response.ok) {
-        setUrlAvailable(data.available);
+        setUrlCheckState({
+          isChecking: false,
+          isAvailable: data.available,
+          message: data.message || (data.available ? 'This URL is available!' : 'This URL is already taken'),
+          showFeedback: true,
+        });
+
         if (data.formattedUrl !== value) {
           setUrlName(data.formattedUrl);
         }
-        setUrlError(data.message || '');
       }
     } catch (error) {
       console.error('Error checking URL availability:', error);
-      setUrlError('Error checking URL availability');
-    } finally {
-      setIsCheckingUrl(false);
+      setUrlCheckState({
+        isChecking: false,
+        isAvailable: null,
+        message: 'Error checking URL availability',
+        showFeedback: true,
+      });
     }
   }, []);
+
+  const getUrlFeedbackClass = () => {
+    if (!urlCheckState.showFeedback || urlCheckState.isChecking) {
+      return 'text-muted';
+    }
+    if (urlCheckState.isAvailable === null) {
+      return 'text-muted';
+    }
+    return urlCheckState.isAvailable ? 'text-success' : 'text-danger';
+  };
+
+  const getUrlFeedbackMessage = () => {
+    if (!urlName) {
+      return '';
+    }
+    if (urlCheckState.isChecking) {
+      return 'Checking availability...';
+    }
+    return urlCheckState.message || '';
+  };
+
+  const getInputValidationClass = () => {
+    if (!urlName || !urlCheckState.showFeedback || urlCheckState.isChecking) {
+      return '';
+    }
+    if (urlName.length < 3) {
+      return '';
+    }
+    return urlCheckState.isAvailable ? 'is-valid' : 'is-invalid';
+  };
+
+  const getUrlFeedback = () => {
+    if (!urlName || !urlCheckState.showFeedback) return null;
+    if (urlCheckState.isChecking) {
+      return {
+        message: 'Checking availability...',
+        className: 'text-muted',
+      };
+    }
+    if (!urlCheckState.isAvailable && urlCheckState.message.includes('3 characters')) {
+      return {
+        message: urlCheckState.message,
+        className: 'text-muted',
+      };
+    }
+    return {
+      message: urlCheckState.message,
+      className: urlCheckState.isAvailable ? 'text-success' : 'text-danger',
+    };
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -101,7 +179,7 @@ const CreateRoom = ({ theme }) => {
     setIsLoading(true);
     setError('');
 
-    if (!urlAvailable) {
+    if (!urlCheckState.isAvailable) {
       setError('Please choose an available URL name');
       setIsLoading(false);
       return;
@@ -197,25 +275,22 @@ const CreateRoom = ({ theme }) => {
                       <span className="input-group-text">v/</span>
                       <input
                         type="text"
-                        className={`form-control ${urlName && (urlAvailable ? 'is-valid' : 'is-invalid')}`}
+                        className={`form-control ${getInputValidationClass()}`}
                         id="urlName"
                         value={urlName}
                         onChange={(e) => setUrlName(e.target.value.toLowerCase())}
                         required
                         maxLength={50}
                         placeholder="my-room-name"
+                        disabled={isLoading}
                       />
-                      {isCheckingUrl && (
+                      {urlCheckState.isChecking && (
                         <div className="spinner-border spinner-border-sm ms-2" role="status">
                           <span className="visually-hidden">Checking...</span>
                         </div>
                       )}
                     </div>
-                    {urlName && !isCheckingUrl && (
-                      <div className={`form-text ${urlAvailable ? 'text-success' : 'text-danger'}`}>
-                        {urlAvailable ? 'This URL is available!' : urlError || 'This URL is already taken'}
-                      </div>
-                    )}
+                    {urlName && <div className={`form-text ${getUrlFeedbackClass()}`}>{getUrlFeedbackMessage()}</div>}
                   </div>
 
                   <div className="mb-3">
