@@ -3,19 +3,19 @@
 const db = require('../db');
 
 exports.createThread = async (req, res) => {
-  //console.log('Create thread got hit');
-
-  const { roomId } = req.params;
+  const { channelId } = req.params;
   const { subject, content, isAnonymous } = req.body;
   const userId = req.user.userId;
-
-  // Convert isAnonymous string to boolean
-  const isAnonymousBoolean = isAnonymous === 'true';
 
   try {
     const result = await db.transaction(async (client) => {
       // Check if user is a member of the room
-      const memberCheck = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+      const memberCheck = await client.query(
+        `SELECT 1 FROM room_members rm 
+         JOIN channels c ON c.room_id = rm.room_id 
+         WHERE c.id = $1 AND rm.user_id = $2`,
+        [channelId, userId]
+      );
 
       if (memberCheck.rows.length === 0) {
         throw new Error('User is not a member of this room');
@@ -23,8 +23,8 @@ exports.createThread = async (req, res) => {
 
       // Create thread
       const threadResult = await client.query(
-        'INSERT INTO threads (room_id, subject, author_id, is_anonymous) VALUES ($1, $2, $3, $4) RETURNING id',
-        [roomId, subject, userId, isAnonymousBoolean]
+        'INSERT INTO threads (channel_id, subject, author_id, is_anonymous) VALUES ($1, $2, $3, $4) RETURNING id, url_id',
+        [channelId, subject, userId, isAnonymous]
       );
 
       const threadId = threadResult.rows[0].id;
@@ -38,7 +38,6 @@ exports.createThread = async (req, res) => {
 
       // If there's a file, add it to file_attachments
       if (req.file) {
-        console.log('Adding file attachment:', req.file);
         await client.query(
           `INSERT INTO file_attachments 
            (post_id, file_name, file_type, file_size, file_url) 
@@ -47,12 +46,16 @@ exports.createThread = async (req, res) => {
         );
       }
 
-      return threadId;
+      return {
+        threadId: threadId,
+        urlId: threadResult.rows[0].url_id,
+      };
     });
 
     res.status(201).json({
       message: 'Thread created successfully',
-      threadId: result,
+      threadId: result.threadId,
+      urlId: result.urlId,
     });
   } catch (error) {
     console.error('Error creating thread:', error);
@@ -61,33 +64,25 @@ exports.createThread = async (req, res) => {
 };
 
 exports.getThreads = async (req, res) => {
-  const { roomId } = req.params;
+  const { channelId } = req.params;
   const { page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
   const userId = req.user.userId;
 
   try {
-    // First check if user is a member of the room
-    const memberCheck = await db.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
-
-    if (memberCheck.rows.length === 0) {
-      return res.status(403).json({ message: 'User is not a member of this room' });
-    }
-
-    // Query to get threads with their first posts and images
     const threads = await db.query(
-      `
-      WITH RankedPosts AS (
+      `WITH RankedPosts AS (
         SELECT 
           p.*,
           ROW_NUMBER() OVER (PARTITION BY p.thread_id ORDER BY p.created_at) as rn
         FROM posts p
         WHERE p.thread_id IN (
-          SELECT id FROM threads WHERE room_id = $1
+          SELECT id FROM threads WHERE channel_id = $1
         )
       )
       SELECT 
         t.id,
+        t.url_id,
         t.subject,
         t.created_at,
         t.is_pinned,
@@ -105,25 +100,14 @@ exports.getThreads = async (req, res) => {
       LEFT JOIN RankedPosts rp ON t.id = rp.thread_id AND rp.rn = 1
       LEFT JOIN file_attachments fa ON rp.id = fa.post_id 
         AND fa.file_type LIKE 'image/%'
-      WHERE t.room_id = $1
-      GROUP BY 
-        t.id, 
-        t.subject, 
-        t.created_at, 
-        t.is_pinned,
-        t.last_activity, 
-        t.is_anonymous, 
-        u.email,
-        rp.content,
-        fa.file_url
+      WHERE t.channel_id = $1
+      GROUP BY t.id, t.subject, t.created_at, t.is_pinned,
+        t.last_activity, t.is_anonymous, u.email,
+        rp.content, fa.file_url
       ORDER BY t.is_pinned DESC, t.last_activity DESC
-      LIMIT $2 OFFSET $3
-    `,
-      [roomId, limit, offset]
+      LIMIT $2 OFFSET $3`,
+      [channelId, limit, offset]
     );
-
-    // Debug log
-    console.log('Thread data:', JSON.stringify(threads.rows, null, 2));
 
     res.json({ threads: threads.rows });
   } catch (error) {

@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../config';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CreateThread = ({ theme }) => {
-  const { roomId, channelId } = useParams();
+  const { roomUrl, channelId } = useParams();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -19,14 +19,38 @@ const CreateThread = ({ theme }) => {
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
   const authToken = localStorage.getItem('authToken');
+  const [room, setRoom] = useState(null);
 
   useEffect(() => {
-    if (!roomId) {
+    if (!roomUrl) {
       navigate('/chat');
       return;
     }
 
-    const fetchChannels = async () => {
+    // First fetch room data
+    const fetchRoomData = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const roomData = await response.json();
+          setRoom(roomData);
+          // After getting room data, fetch channels
+          fetchChannels(roomData.room_id);
+        } else {
+          navigate('/chat');
+        }
+      } catch (error) {
+        console.error('Error fetching room:', error);
+        setError('Failed to load room data');
+      }
+    };
+
+    const fetchChannels = async (roomId) => {
       try {
         const response = await fetch(`${API_BASE_URL}/channels/${roomId}`, {
           headers: {
@@ -47,8 +71,8 @@ const CreateThread = ({ theme }) => {
       }
     };
 
-    fetchChannels();
-  }, [roomId, authToken, navigate, channelId, selectedChannel]);
+    fetchRoomData();
+  }, [roomUrl, authToken, navigate, channelId, selectedChannel]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -92,7 +116,8 @@ const CreateThread = ({ theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        navigate(`/chat/rooms/${roomId}`);
+        // Navigate using the URL structure
+        navigate(`/v/${roomUrl}`);
       } else if (response.status === 401) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userId');
@@ -110,7 +135,7 @@ const CreateThread = ({ theme }) => {
   };
 
   const handleCancel = () => {
-    navigate(`/chat/rooms/${roomId}`);
+    navigate(`/v/${roomUrl}`);
   };
 
   return (

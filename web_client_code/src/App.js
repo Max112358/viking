@@ -36,8 +36,13 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword theme={theme} />} />
             <Route path="/register" element={<Register theme={theme} />} />
             <Route path="/create-room" element={<CreateRoom theme={theme} />} />
-            <Route path="/create-thread/:roomId" element={<CreateThread theme={theme} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* New URL-based routes */}
+            <Route path="/v/:roomUrl" element={<ChatInterface theme={theme} />} />
+            <Route path="/v/:roomUrl/:channelId" element={<ChatInterface theme={theme} />} />
+            <Route path="/v/:roomUrl/:channelId/:threadId" element={<ChatInterface theme={theme} />} />
+            {/* Keep create thread route but update it to match new URL pattern */}
+            <Route path="/v/:roomUrl/create-thread" element={<CreateThread theme={theme} />} />
+            <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </Router>
       </div>
@@ -49,13 +54,14 @@ function App() {
 /*
 src/
   ├── components/
-  ├───── ChatInterface.js
-  ├───── CreateRoom.js
-  ├───── CreateThread.js
-  ├───── ForgotPassword.js
-  ├───── Login.js
-  ├───── Register.js
-  ├───── ResetPassword.js
+  |   ├─ ChatInterface.js
+  |   ├─ CreateRoom.js
+  |   ├─ CreateChannel.js
+  |   ├─ CreateThread.js
+  |   ├─ ForgotPassword.js
+  |   ├─ Login.js
+  |   ├─ Register.js
+  |   └─ ResetPassword.js
   ├── App.js
   ├── config.js
   ├── index.js

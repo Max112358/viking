@@ -72,6 +72,41 @@ async function runMigrations() {
 const initializeDatabase = async () => {
   const client = await pool.connect();
   try {
+    // Create function for generating unique URL IDs
+    await client.query(`
+      CREATE OR REPLACE FUNCTION generate_unique_url_id(table_name text, column_name text)
+      RETURNS char(8) AS $$
+      DECLARE
+          new_id char(8);
+          done bool;
+      BEGIN
+          done := false;
+          WHILE NOT done LOOP
+              -- Generate random 8-character string with mixed case alphanumeric
+              new_id := array_to_string(ARRAY(
+                  SELECT chr(((CASE WHEN r < 26 THEN 65 
+                                  WHEN r < 52 THEN 97
+                                  ELSE 48 END) + (CASE WHEN r < 26 THEN r
+                                                     WHEN r < 52 THEN (r-26)
+                                                     ELSE (r-52) END))::integer)
+                  FROM (
+                      SELECT floor(random()*62)::integer AS r
+                      FROM generate_series(1,8)
+                  ) AS gen
+              ), '');
+              
+              -- Check if ID exists
+              EXECUTE format('SELECT NOT EXISTS(SELECT 1 FROM %I WHERE %I = $1)', table_name, column_name)
+              INTO done
+              USING new_id;
+          END LOOP;
+          
+          RETURN new_id;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    console.log('URL generation function created');
+
     // 1. First create users table (no dependencies)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -109,11 +144,12 @@ const initializeDatabase = async () => {
     `);
     console.log('Friendships table ensured');
 
-    // 4. Create rooms table (no dependencies)
+    // 4. Create rooms table (no dependencies) - Updated with url_name
     await client.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
+        url_name VARCHAR(50) UNIQUE NOT NULL,
         description TEXT,
         thumbnail_url VARCHAR(255),
         is_public BOOLEAN DEFAULT FALSE,
@@ -216,6 +252,7 @@ const initializeDatabase = async () => {
       CREATE TABLE IF NOT EXISTS channels (
         id SERIAL PRIMARY KEY,
         room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        url_id CHAR(8) UNIQUE NOT NULL,
         name VARCHAR(100) NOT NULL,
         description TEXT,
         position INTEGER DEFAULT 0,
@@ -226,6 +263,26 @@ const initializeDatabase = async () => {
       )
     `);
     console.log('Channels table ensured');
+
+    // Create trigger function for channel URL IDs
+    await client.query(`
+      CREATE OR REPLACE FUNCTION set_channel_url_id()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          IF NEW.url_id IS NULL THEN
+              NEW.url_id := generate_unique_url_id('channels', 'url_id');
+          END IF;
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS set_channel_url_id_trigger ON channels;
+      CREATE TRIGGER set_channel_url_id_trigger
+          BEFORE INSERT ON channels
+          FOR EACH ROW
+          EXECUTE FUNCTION set_channel_url_id();
+    `);
+    console.log('Channel URL trigger created');
 
     // 6. Create channel permissions table (depends on channels)
     await client.query(`
@@ -284,10 +341,12 @@ const initializeDatabase = async () => {
     console.log('Channel triggers created');
 
     // 10. Create threads table (depends on rooms and users)
+    // Update threads table with url_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS threads (
         id SERIAL PRIMARY KEY,
         channel_id INTEGER REFERENCES channels(id) ON DELETE CASCADE,
+        url_id CHAR(8) UNIQUE NOT NULL,
         subject VARCHAR(255) NOT NULL,
         author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -298,6 +357,26 @@ const initializeDatabase = async () => {
       )
     `);
     console.log('Threads table ensured');
+
+    // Create trigger function for thread URL IDs
+    await client.query(`
+      CREATE OR REPLACE FUNCTION set_thread_url_id()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          IF NEW.url_id IS NULL THEN
+              NEW.url_id := generate_unique_url_id('threads', 'url_id');
+          END IF;
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS set_thread_url_id_trigger ON threads;
+      CREATE TRIGGER set_thread_url_id_trigger
+          BEFORE INSERT ON threads
+          FOR EACH ROW
+          EXECUTE FUNCTION set_thread_url_id();
+    `);
+    console.log('Thread URL trigger created');
 
     // 11. Create anonymous_identifiers table (depends on threads and users)
     await client.query(`

@@ -15,5 +15,7 @@ router.post('/', upload.single('thumbnail'), createRoom);
 router.post('/:roomId/join', joinRoom);
 router.post('/:roomId/leave', leaveRoom);
 router.delete('/:roomId', deleteRoom);
+router.get('/check-url/:urlName', checkRoomUrlAvailability);
+router.get('/by-url/:urlName', getRoomByUrl);
 
 module.exports = router;

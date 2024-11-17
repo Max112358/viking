@@ -19,16 +19,15 @@ exports.createChannel = async (req, res) => {
       }
 
       // Create the channel
-      const result = await client.query('INSERT INTO channels (room_id, name, description, is_nsfw) VALUES ($1, $2, $3, $4) RETURNING id', [
-        roomId,
-        name,
-        description,
-        isNsfw,
-      ]);
+      const result = await client.query(
+        'INSERT INTO channels (room_id, name, description, is_nsfw) VALUES ($1, $2, $3, $4) RETURNING id, url_id',
+        [roomId, name, description, isNsfw]
+      );
 
       res.status(201).json({
         message: 'Channel created successfully',
         channelId: result.rows[0].id,
+        urlId: result.rows[0].url_id,
       });
     });
   } catch (error) {
@@ -50,9 +49,11 @@ exports.getChannels = async (req, res) => {
     }
 
     const channels = await db.query(
-      `SELECT c.*, 
+      `SELECT 
+        c.*, 
         COUNT(t.id) as thread_count,
-        MAX(t.last_activity) as latest_activity
+        MAX(t.last_activity) as latest_activity,
+        c.url_id
       FROM channels c
       LEFT JOIN threads t ON c.id = t.channel_id
       WHERE c.room_id = $1

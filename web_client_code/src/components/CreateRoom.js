@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+// part of frontend
+// components/CreateRoom.js
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CreateRoom = ({ theme }) => {
   const [roomName, setRoomName] = useState('');
+  const [urlName, setUrlName] = useState('');
   const [description, setDescription] = useState('');
   const [thumbnailImage, setThumbnailImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [urlAvailable, setUrlAvailable] = useState(null);
+  const [isCheckingUrl, setIsCheckingUrl] = useState(false);
+  const [urlError, setUrlError] = useState('');
 
   // Room settings
   const [isPublic, setIsPublic] = useState(false);
@@ -23,6 +29,55 @@ const CreateRoom = ({ theme }) => {
   const [isNsfw, setIsNsfw] = useState(false);
 
   const navigate = useNavigate();
+
+  // Suggest URL name based on room name
+  useEffect(() => {
+    if (!urlName) {
+      const suggested = roomName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+      setUrlName(suggested);
+    }
+  }, [roomName, urlName]);
+
+  // Check URL availability with debouncing
+  const checkUrlAvailability = useCallback(async (value) => {
+    if (!value || value.length < 3) {
+      setUrlAvailable(null);
+      setUrlError('URL must be at least 3 characters long');
+      return;
+    }
+
+    setIsCheckingUrl(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/rooms/check-url/${value}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setUrlAvailable(data.available);
+        if (data.formattedUrl !== value) {
+          setUrlName(data.formattedUrl);
+        }
+        setUrlError(data.message || '');
+      }
+    } catch (error) {
+      console.error('Error checking URL availability:', error);
+      setUrlError('Error checking URL availability');
+    } finally {
+      setIsCheckingUrl(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (urlName) {
+        checkUrlAvailability(urlName);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [urlName, checkUrlAvailability]);
 
   const getThreadLimitDisplay = (value) => {
     return value === 500 ? '∞' : value;
@@ -46,6 +101,12 @@ const CreateRoom = ({ theme }) => {
     setIsLoading(true);
     setError('');
 
+    if (!urlAvailable) {
+      setError('Please choose an available URL name');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const authToken = localStorage.getItem('authToken');
 
@@ -56,6 +117,7 @@ const CreateRoom = ({ theme }) => {
 
       const formData = new FormData();
       formData.append('name', roomName);
+      formData.append('urlName', urlName);
       formData.append('description', description);
       if (thumbnailImage) {
         formData.append('thumbnail', thumbnailImage);
@@ -83,7 +145,7 @@ const CreateRoom = ({ theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        navigate('/chat');
+        navigate(`/v/${data.urlName}`);
       } else {
         if (response.status === 401) {
           localStorage.setItem('authToken', 'invalid');
@@ -125,6 +187,35 @@ const CreateRoom = ({ theme }) => {
                       required
                       maxLength={50}
                     />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="urlName" className="form-label">
+                      Room URL
+                    </label>
+                    <div className="input-group">
+                      <span className="input-group-text">v/</span>
+                      <input
+                        type="text"
+                        className={`form-control ${urlName && (urlAvailable ? 'is-valid' : 'is-invalid')}`}
+                        id="urlName"
+                        value={urlName}
+                        onChange={(e) => setUrlName(e.target.value.toLowerCase())}
+                        required
+                        maxLength={50}
+                        placeholder="my-room-name"
+                      />
+                      {isCheckingUrl && (
+                        <div className="spinner-border spinner-border-sm ms-2" role="status">
+                          <span className="visually-hidden">Checking...</span>
+                        </div>
+                      )}
+                    </div>
+                    {urlName && !isCheckingUrl && (
+                      <div className={`form-text ${urlAvailable ? 'text-success' : 'text-danger'}`}>
+                        {urlAvailable ? 'This URL is available!' : urlError || 'This URL is already taken'}
+                      </div>
+                    )}
                   </div>
 
                   <div className="mb-3">
@@ -343,7 +434,7 @@ const CreateRoom = ({ theme }) => {
                   </div>
 
                   <div className="d-grid gap-2">
-                    <button type="submit" className="btn btn-primary" disabled={isLoading}>
+                    <button type="submit" className="btn btn-primary" disabled={isLoading || !urlAvailable}>
                       {isLoading ? 'Creating...' : 'Create Room'}
                     </button>
                     <button type="button" className="btn btn-secondary" onClick={() => navigate('/chat')}>
