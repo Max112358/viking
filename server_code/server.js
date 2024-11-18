@@ -42,6 +42,7 @@ app.use((error, req, res, next) => {
 // Routes - mount at root level to keep original paths
 app.use('/', require('./routes/auth'));
 app.use('/rooms', require('./routes/rooms'));
+app.use('/categories', require('./routes/categories'));
 app.use('/channels', require('./routes/channels'));
 app.use('/threads', require('./routes/threads'));
 app.use('/users', require('./routes/users'));
@@ -51,13 +52,6 @@ app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
 
-//basic outline for how this chat website works
-/*
-Rooms are created and controlled by users. Whoever creates the room becomes its admin, but can promote other sub-admins.
-Rooms contain threads. Any user can make threads within a room. A thread has a subject which is supposed to be the threads theme or reason for existing.
-Threads contain posts. Any user can make a post within a thread. A post contains a message.
-*/
-
 //backend file structure DO NOT DELETE THIS
 /*
 project/
@@ -66,6 +60,7 @@ project/
   ├─────roomController.js
   ├─────threadController.js
   ├─────channelController.js
+  ├─────categoryController.js
   ├── middleware/
   ├─────fileUpload.js
   ├─────auth.js
@@ -74,6 +69,7 @@ project/
   ├─────rooms.js
   ├─────users.js
   ├─────threads.js
+  ├─────categories.js
   ├── services/
   ├─────roomService.js
   ├── public/
