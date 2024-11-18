@@ -247,11 +247,27 @@ const initializeDatabase = async () => {
     `);
     console.log('Room timeouts table ensured');
 
+    // First create the channel categories table BEFORE the channels table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS channel_categories (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        position INTEGER DEFAULT 0,
+        is_collapsed BOOLEAN DEFAULT false,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(room_id, name)
+      )
+    `);
+    console.log('Channel categories table ensured');
+
     // 10. -- Create channels table (depends on rooms)
     await client.query(`
       CREATE TABLE IF NOT EXISTS channels (
         id SERIAL PRIMARY KEY,
         room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        category_id INTEGER REFERENCES channel_categories(id) ON DELETE SET NULL,
         url_id CHAR(8) UNIQUE NOT NULL,
         name VARCHAR(100) NOT NULL,
         description TEXT,
@@ -259,10 +275,136 @@ const initializeDatabase = async () => {
         is_default BOOLEAN DEFAULT FALSE,
         is_nsfw BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(room_id, name)
       )
     `);
     console.log('Channels table ensured');
+
+    // Create trigger for updated_at timestamp
+    await client.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+      END;
+      $$ language 'plpgsql';
+    `);
+
+    // Add timestamp triggers
+    await client.query(`
+      DROP TRIGGER IF EXISTS update_channel_categories_updated_at ON channel_categories;
+      CREATE TRIGGER update_channel_categories_updated_at
+          BEFORE UPDATE ON channel_categories
+          FOR EACH ROW
+          EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    // Create trigger for category position maintenance
+    await client.query(`
+      CREATE OR REPLACE FUNCTION maintain_category_position()
+      RETURNS TRIGGER AS $$
+      DECLARE
+        max_pos INTEGER;
+      BEGIN
+          IF NEW.position IS NULL OR NEW.position < 0 THEN
+              SELECT COALESCE(MAX(position) + 1, 0)
+              INTO max_pos
+              FROM channel_categories
+              WHERE room_id = NEW.room_id;
+              
+              NEW.position := max_pos;
+          END IF;
+
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Create trigger for channel position maintenance
+    await client.query(`
+      CREATE OR REPLACE FUNCTION maintain_channel_position()
+      RETURNS TRIGGER AS $$
+      DECLARE
+        max_pos INTEGER;
+      BEGIN
+          IF NEW.position IS NULL OR NEW.position < 0 THEN
+              IF NEW.category_id IS NOT NULL THEN
+                  SELECT COALESCE(MAX(position) + 1, 0)
+                  INTO max_pos
+                  FROM channels
+                  WHERE category_id = NEW.category_id;
+              ELSE
+                  SELECT COALESCE(MAX(position) + 1, 0)
+                  INTO max_pos
+                  FROM channels
+                  WHERE room_id = NEW.room_id
+                    AND category_id IS NULL;
+              END IF;
+              
+              NEW.position := max_pos;
+          END IF;
+
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Add position maintenance triggers
+    await client.query(`
+      DROP TRIGGER IF EXISTS set_category_position ON channel_categories;
+      CREATE TRIGGER set_category_position
+          BEFORE INSERT OR UPDATE OF position ON channel_categories
+          FOR EACH ROW
+          EXECUTE FUNCTION maintain_category_position();
+
+      DROP TRIGGER IF EXISTS set_channel_position ON channels;
+      CREATE TRIGGER set_channel_position
+          BEFORE INSERT OR UPDATE OF position ON channels
+          FOR EACH ROW
+          EXECUTE FUNCTION maintain_channel_position();
+    `);
+
+    // Create function for category reordering
+    await client.query(`
+      CREATE OR REPLACE FUNCTION reorder_categories(
+        p_room_id INTEGER,
+        p_category_ids INTEGER[],
+        p_positions INTEGER[]
+      ) RETURNS void AS $$
+      BEGIN
+        FOR i IN 1..array_length(p_category_ids, 1)
+        LOOP
+          UPDATE channel_categories
+          SET position = p_positions[i]
+          WHERE id = p_category_ids[i] AND room_id = p_room_id;
+        END LOOP;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Create function for channel reordering
+    await client.query(`
+      CREATE OR REPLACE FUNCTION reorder_channels(
+        p_room_id INTEGER,
+        p_channel_ids INTEGER[],
+        p_positions INTEGER[],
+        p_category_ids INTEGER[]
+      ) RETURNS void AS $$
+      BEGIN
+        FOR i IN 1..array_length(p_channel_ids, 1)
+        LOOP
+          UPDATE channels
+          SET position = p_positions[i],
+              category_id = p_category_ids[i]
+          WHERE id = p_channel_ids[i]
+            AND room_id = p_room_id;
+        END LOOP;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    console.log('Category and channel ordering functions created');
 
     // Create trigger function for channel URL IDs
     await client.query(`

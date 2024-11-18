@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import Login from './components/Login';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
-import ChatInterface from './components/ChatInterface';
+import ChatInterface from './components/chat/ChatInterface';
 import CreateThread from './components/CreateThread';
 import CreateRoom from './components/create-room/CreateRoom';
 import './colors.css';

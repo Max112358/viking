@@ -78,11 +78,20 @@ exports.createRoom = async (req, res) => {
 
       const roomId = roomResult.rows[0].id;
 
-      // Create default channel
+      // Create default TEXT CHANNELS category
+      const categoryResult = await client.query(
+        `INSERT INTO channel_categories (room_id, name, position) 
+         VALUES ($1, $2, 0) RETURNING id`,
+        [roomId, 'TEXT CHANNELS']
+      );
+
+      const categoryId = categoryResult.rows[0].id;
+
+      // Create default general channel within the TEXT CHANNELS category
       await client.query(
-        `INSERT INTO channels (room_id, name, description, is_default) 
-         VALUES ($1, $2, $3, true)`,
-        [roomId, 'general', 'General discussion']
+        `INSERT INTO channels (room_id, category_id, name, description, is_default) 
+         VALUES ($1, $2, $3, $4, true)`,
+        [roomId, categoryId, 'general', 'General discussion']
       );
 
       // Make creator an admin
@@ -198,13 +207,19 @@ exports.getRoomByUrl = async (req, res) => {
 };
 
 exports.getUserRooms = async (req, res) => {
-  // Get userId from the JWT token instead of URL parameters
   const userId = req.user.userId;
 
   try {
     const userRooms = await db.query(
       `
-      SELECT r.id as room_id, r.name, r.thumbnail_url, r.created_at, rm.joined_at
+      SELECT 
+        r.id as room_id, 
+        r.name, 
+        r.url_name,  // Make sure this is included
+        r.thumbnail_url, 
+        r.created_at, 
+        rm.joined_at,
+        rm.is_admin
       FROM rooms r
       INNER JOIN room_members rm ON r.id = rm.room_id
       WHERE rm.user_id = $1

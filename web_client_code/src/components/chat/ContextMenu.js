@@ -14,3 +14,5 @@ const ContextMenu = ({ x, y, onClose, children }) => (
     {children}
   </div>
 );
+
+export default ContextMenu;

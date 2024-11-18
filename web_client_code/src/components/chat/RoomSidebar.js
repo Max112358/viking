@@ -1,4 +1,3 @@
-// part of front end
 // components/chat/RoomSidebar.js
 import React from 'react';
 
@@ -34,3 +33,5 @@ const RoomSidebar = ({ rooms, selectedRoom, onRoomSelect, onCreateRoom, onRoomCo
     </div>
   );
 };
+
+export default RoomSidebar;

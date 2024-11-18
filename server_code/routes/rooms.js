@@ -10,15 +10,15 @@ const {
   joinRoom,
   leaveRoom,
   deleteRoom,
-  checkRoomUrlAvailability, // Add this import
-  getRoomByUrl, // Add this import
+  checkRoomUrlAvailability,
+  getRoomByUrl,
 } = require('../controllers/roomController');
 
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// Update the getUserRooms route to not use URL parameters
-router.get('/', getUserRooms); // Changed from '/user/:userId/rooms'
+// Update the getUserRooms route to use the root path
+router.get('/', getUserRooms);
 router.post('/', upload.single('thumbnail'), createRoom);
 router.post('/:roomId/join', joinRoom);
 router.post('/:roomId/leave', leaveRoom);

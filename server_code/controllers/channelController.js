@@ -41,28 +41,51 @@ exports.getChannels = async (req, res) => {
   const userId = req.user.userId;
 
   try {
-    // Check if user is room member
-    const memberCheck = await db.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+    // Check if user is room member and get their role
+    const memberCheck = await db.query(
+      `SELECT rm.is_admin 
+       FROM room_members rm 
+       WHERE rm.room_id = $1 AND rm.user_id = $2`,
+      [roomId, userId]
+    );
 
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({ message: 'User is not a member of this room' });
     }
 
-    const channels = await db.query(
-      `SELECT 
-        c.*, 
-        COUNT(t.id) as thread_count,
-        MAX(t.last_activity) as latest_activity,
-        c.url_id
-      FROM channels c
-      LEFT JOIN threads t ON c.id = t.channel_id
-      WHERE c.room_id = $1
-      GROUP BY c.id
-      ORDER BY c.position, c.created_at`,
+    // First get all categories for the room
+    const categoriesQuery = await db.query(
+      `SELECT cc.id, cc.name, cc.position
+       FROM channel_categories cc
+       WHERE cc.room_id = $1
+       ORDER BY cc.position`,
       [roomId]
     );
 
-    res.json({ channels: channels.rows });
+    // Then get all channels with their category information
+    const channelsQuery = await db.query(
+      `SELECT 
+        c.*,
+        COUNT(t.id) as thread_count,
+        MAX(t.last_activity) as latest_activity
+       FROM channels c
+       LEFT JOIN threads t ON c.id = t.channel_id
+       WHERE c.room_id = $1
+       GROUP BY c.id
+       ORDER BY c.position`,
+      [roomId]
+    );
+
+    // Organize channels by category
+    const categories = categoriesQuery.rows.map((category) => ({
+      ...category,
+      channels: channelsQuery.rows.filter((channel) => channel.category_id === category.id),
+    }));
+
+    res.json({
+      categories,
+      is_admin: memberCheck.rows[0].is_admin,
+    });
   } catch (error) {
     console.error('Error fetching channels:', error);
     res.status(500).json({ message: 'Error fetching channels' });
