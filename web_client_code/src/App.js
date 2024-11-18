@@ -7,6 +7,7 @@ import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ChatInterface from './components/chat/ChatInterface';
 import CreateThread from './components/CreateThread';
+import CreateCategory from './components/CreateCategory';
 import CreateRoom from './components/create-room/CreateRoom';
 import './colors.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -38,6 +39,7 @@ function App() {
             <Route path="/create-room" element={<CreateRoom theme={theme} />} />
             {/* New URL-based routes */}
             <Route path="/v/:roomUrl" element={<ChatInterface theme={theme} />} />
+            <Route path="/v/:roomUrl/create-category" element={<CreateCategory theme={theme} />} />
             <Route path="/v/:roomUrl/:channelId" element={<ChatInterface theme={theme} />} />
             <Route path="/v/:roomUrl/:channelId/:threadId" element={<ChatInterface theme={theme} />} />
             {/* Keep create thread route but update it to match new URL pattern */}
@@ -74,6 +76,7 @@ src/
   |   ├─ ForgotPassword.js
   |   ├─ Login.js
   |   ├─ Register.js
+  |   ├─ CreateCategory.js
   |   └─ ResetPassword.js
   ├── App.js
   ├── config.js
