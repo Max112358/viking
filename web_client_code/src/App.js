@@ -6,8 +6,8 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ChatInterface from './components/ChatInterface';
-import CreateRoom from './components/CreateRoom';
 import CreateThread from './components/CreateThread';
+import CreateRoom from './components/create-room/CreateRoom';
 import './colors.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -63,8 +63,12 @@ src/
   |   |  ├─ RoomSidebar.js
   |   |  ├─ ThreadList.js
   |   |  └─ ChannelSidebar.js
-  |   ├─ ChatInterface.js (old version)
-  |   ├─ CreateRoom.js
+  |   ├─ create-room/
+  |   |  ├─ CreateRoom.js
+  |   |  ├─ DetailsForm.js
+  |   |  ├─ index.js
+  |   |  ├─ Layout.js
+  |   |  └─ SettingsForm.js
   |   ├─ CreateChannel.js
   |   ├─ CreateThread.js
   |   ├─ ForgotPassword.js
