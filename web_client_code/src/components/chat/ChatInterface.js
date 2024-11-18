@@ -16,14 +16,13 @@ const ChatInterface = ({ theme }) => {
 
   // State management
   const [rooms, setRooms] = useState([]);
-  const [channels, setChannels] = useState([]);
-  const [threads, setThreads] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [selectedThread, setSelectedThread] = useState(null);
   const [showRoomSidebar, setShowRoomSidebar] = useState(true);
   const [showChannelSidebar, setShowChannelSidebar] = useState(true);
   const [contextMenu, setContextMenu] = useState(null);
+  const [threads, setThreads] = useState([]);
 
   // Authentication helpers
   const handleInvalidToken = useCallback(() => {
@@ -31,7 +30,52 @@ const ChatInterface = ({ theme }) => {
     navigate('/login');
   }, [navigate]);
 
-  // Data fetching functions
+  // Fetch and update room data including channels
+  const fetchAndUpdateRoom = useCallback(
+    async (roomId, urlName = null) => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          handleInvalidToken();
+          return;
+        }
+
+        // Fetch room details and channels in parallel
+        const [roomResponse, channelsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/rooms/by-url/${urlName || roomUrl}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE_URL}/channels/${roomId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (!roomResponse.ok || !channelsResponse.ok) {
+          if (roomResponse.status === 401 || channelsResponse.status === 401) {
+            handleInvalidToken();
+            return;
+          }
+          throw new Error('Failed to fetch room data');
+        }
+
+        const [roomData, channelsData] = await Promise.all([roomResponse.json(), channelsResponse.json()]);
+
+        // Update room with channels data
+        const updatedRoom = {
+          ...roomData,
+          categories: channelsData.categories,
+          is_admin: channelsData.is_admin,
+        };
+
+        setSelectedRoom(updatedRoom);
+        return updatedRoom;
+      } catch (error) {
+        console.error('Error fetching room data:', error);
+      }
+    },
+    [handleInvalidToken, roomUrl]
+  );
+
   // Fetch rooms
   const fetchRooms = useCallback(async () => {
     try {
@@ -59,14 +103,15 @@ const ChatInterface = ({ theme }) => {
       if (roomUrl) {
         const matchingRoom = data.rooms.find((room) => room.url_name === roomUrl);
         if (matchingRoom) {
-          setSelectedRoom(matchingRoom);
+          await fetchAndUpdateRoom(matchingRoom.room_id, matchingRoom.url_name);
         }
       }
     } catch (error) {
       console.error('Error fetching rooms:', error);
     }
-  }, [handleInvalidToken, roomUrl]);
+  }, [handleInvalidToken, roomUrl, fetchAndUpdateRoom]);
 
+  // Initial setup
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
     if (!authToken) {
@@ -76,37 +121,12 @@ const ChatInterface = ({ theme }) => {
     fetchRooms();
   }, [fetchRooms, handleInvalidToken]);
 
-  // Initial fetch of rooms
+  // URL-based navigation effect
   useEffect(() => {
-    fetchRooms();
-  }, [fetchRooms]);
-
-  const fetchChannels = async (roomId) => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/channels/${roomId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 401) {
-        handleInvalidToken();
-        return;
-      }
-
-      const data = await response.json();
-
-      // Update the room object with categories and admin status
-      setSelectedRoom((prev) => ({
-        ...prev,
-        categories: data.categories,
-        is_admin: data.is_admin,
-      }));
-    } catch (error) {
-      console.error('Error fetching channels:', error);
+    if (roomUrl && selectedRoom?.room_id) {
+      fetchAndUpdateRoom(selectedRoom.room_id);
     }
-  };
+  }, [roomUrl, selectedRoom?.room_id, fetchAndUpdateRoom]);
 
   const fetchThreads = async (channelId) => {
     try {
@@ -129,64 +149,51 @@ const ChatInterface = ({ theme }) => {
     }
   };
 
-  // URL-based routing effect
-  useEffect(() => {
-    if (roomUrl) {
-      const fetchRoomByUrl = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
-
-          if (response.ok) {
-            const roomData = await response.json();
-            setSelectedRoom(roomData);
-            fetchChannels(roomData.room_id);
-
-            if (channelId) {
-              const channelResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-                },
-              });
-
-              if (channelResponse.ok) {
-                const { channels } = await channelResponse.json();
-                const channel = channels.find((c) => c.url_id === channelId);
-                if (channel) {
-                  setSelectedChannel(channel);
-                  fetchThreads(channel.id);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching room:', error);
-        }
-      };
-
-      fetchRoomByUrl();
-    }
-  }, [roomUrl, channelId, threadId]);
-
-  // Event handlers
   // Room selection handler
-  const handleRoomSelect = (room) => {
+  const handleRoomSelect = async (room) => {
     if (!room.url_name) {
       console.error('Room URL name is missing:', room);
       return;
     }
+
     navigate(`/v/${room.url_name}`);
-    setSelectedRoom(room);
+    await fetchAndUpdateRoom(room.room_id, room.url_name);
+
     if (isMobile) {
       setShowRoomSidebar(false);
       setShowChannelSidebar(true);
     }
   };
 
-  // Room display helper
+  const handleChannelSelect = (channel) => {
+    navigate(`/v/${selectedRoom.url_name}/${channel.url_id}`);
+    setSelectedChannel(channel);
+    fetchThreads(channel.id);
+    if (isMobile) {
+      setShowChannelSidebar(false);
+    }
+  };
+
+  const handleThreadSelect = (thread) => {
+    navigate(`/v/${selectedRoom.url_name}/${selectedChannel.url_id}/${thread.url_id}`);
+    setSelectedThread(thread);
+  };
+
+  const handleCreateRoom = () => {
+    navigate('/create-room');
+  };
+
+  const handleCreateThread = () => {
+    if (selectedChannel) {
+      navigate(`/v/${selectedRoom.url_name}/create-thread`);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
+  };
+
   const getRoomDisplay = (room) => {
     if (room.thumbnail_url) {
       const fullUrl = `${API_BASE_URL}${room.thumbnail_url}`;
@@ -206,43 +213,6 @@ const ChatInterface = ({ theme }) => {
     return room.name.charAt(0).toUpperCase();
   };
 
-  const handleChannelSelect = (channel) => {
-    navigate(`/v/${selectedRoom.url_name}/${channel.url_id}`);
-  };
-
-  const handleThreadSelect = (thread) => {
-    navigate(`/v/${selectedRoom.url_name}/${selectedChannel.url_id}/${thread.url_id}`);
-  };
-
-  const handleCreateRoom = () => {
-    navigate('/create-room');
-  };
-
-  const handleCreateThread = () => {
-    navigate(`/v/${selectedRoom.url_name}/create-thread`);
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
-  };
-
-  // Mobile responsiveness handlers
-  const handleToggleRoomSidebar = () => {
-    setShowRoomSidebar(!showRoomSidebar);
-    if (isMobile && !showRoomSidebar) {
-      setShowChannelSidebar(false);
-    }
-  };
-
-  const handleToggleChannelSidebar = () => {
-    setShowChannelSidebar(!showChannelSidebar);
-    if (isMobile && !showChannelSidebar) {
-      setShowRoomSidebar(false);
-    }
-  };
-
-  // Context menu handlers
   const handleContextMenu = useCallback((e, item, type = 'room') => {
     e.preventDefault();
     setContextMenu({
@@ -270,7 +240,6 @@ const ChatInterface = ({ theme }) => {
           setSelectedRoom(null);
           setSelectedChannel(null);
           setSelectedThread(null);
-          setChannels([]);
           setThreads([]);
         }
         fetchRooms();
@@ -320,16 +289,8 @@ const ChatInterface = ({ theme }) => {
           rooms={rooms}
           selectedRoom={selectedRoom}
           onRoomSelect={handleRoomSelect}
-          onCreateRoom={() => navigate('/create-room')}
-          onRoomContextMenu={(e, room) => {
-            e.preventDefault();
-            setContextMenu({
-              x: e.pageX,
-              y: e.pageY,
-              item: room,
-              type: 'room',
-            });
-          }}
+          onCreateRoom={handleCreateRoom}
+          onRoomContextMenu={handleContextMenu}
           getRoomDisplay={getRoomDisplay}
           theme={theme}
         />
@@ -349,7 +310,6 @@ const ChatInterface = ({ theme }) => {
         >
           <ChannelSidebar
             selectedRoom={selectedRoom}
-            channels={channels}
             selectedChannel={selectedChannel}
             onChannelSelect={handleChannelSelect}
             theme={theme}
@@ -371,7 +331,19 @@ const ChatInterface = ({ theme }) => {
           transition: 'margin-left 0.3s ease-in-out',
         }}
       >
-        {/* ... rest of the content ... */}
+        {selectedChannel ? (
+          <ThreadList
+            selectedChannel={selectedChannel}
+            threads={threads}
+            onThreadSelect={handleThreadSelect}
+            onCreateThread={handleCreateThread}
+            theme={theme}
+          />
+        ) : (
+          <div className="h-100 d-flex align-items-center justify-content-center">
+            <p>{selectedRoom ? 'Select a channel to view threads' : 'Select a room to view channels'}</p>
+          </div>
+        )}
       </div>
 
       {/* Logout Button */}

@@ -49,3 +49,5 @@ const ThreadList = ({ selectedChannel, threads, onThreadSelect, onCreateThread, 
     </div>
   );
 };
+
+export default ThreadList;
