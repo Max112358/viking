@@ -215,7 +215,7 @@ exports.getUserRooms = async (req, res) => {
       SELECT 
         r.id as room_id, 
         r.name, 
-        r.url_name,  // Make sure this is included
+        r.url_name,
         r.thumbnail_url, 
         r.created_at, 
         rm.joined_at,
