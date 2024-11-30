@@ -18,7 +18,7 @@ const ThreadList = ({ selectedChannel, threads, onThreadSelect, onCreateThread, 
           {threads.map((thread) => (
             <div
               key={thread.id}
-              className={`card ${theme === 'dark' ? 'bg-mid-dark' : ''}`}
+              className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}
               onClick={() => onThreadSelect(thread)}
               style={{ cursor: 'pointer' }}
             >
@@ -35,7 +35,7 @@ const ThreadList = ({ selectedChannel, threads, onThreadSelect, onCreateThread, 
                   <div>
                     <h6 className="card-title">{thread.subject}</h6>
                     <p className="card-text small">{thread.first_post_content}</p>
-                    <div className="text-muted small">
+                    <div className={`small ${theme === 'dark' ? 'text-light-emphasis' : 'text-muted'}`}>
                       {thread.author_email ? `Posted by ${thread.author_email}` : 'Anonymous'} ·{' '}
                       {new Date(thread.created_at).toLocaleDateString()}
                     </div>

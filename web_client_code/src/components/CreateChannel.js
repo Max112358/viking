@@ -1,4 +1,4 @@
-// part of frontend
+// components/CreateChannel.js
 // components/CreateChannel.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -12,42 +12,70 @@ const CreateChannel = ({ theme }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [room, setRoom] = useState(null);
+  const [categoryName, setCategoryName] = useState(''); // Changed from category state
   const navigate = useNavigate();
-  const { roomUrl } = useParams();
+  const { roomUrl, categoryId } = useParams();
 
   useEffect(() => {
-    const fetchRoomData = async () => {
+    const fetchRoomAndCategoryData = async () => {
       try {
         const authToken = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
+
+        // Fetch room data first
+        const roomResponse = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
         });
 
-        if (response.ok) {
-          const roomData = await response.json();
-          if (!roomData.is_admin) {
-            // Redirect if user is not an admin
-            navigate(`/v/${roomUrl}`);
-            return;
-          }
-          setRoom(roomData);
+        if (!roomResponse.ok) {
+          throw new Error('Failed to fetch room data');
+        }
+
+        const roomData = await roomResponse.json();
+        if (!roomData.is_admin) {
+          navigate(`/v/${roomUrl}`);
+          return;
+        }
+        setRoom(roomData);
+
+        // Then fetch channels/categories data
+        const categoriesResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (!categoriesResponse.ok) {
+          throw new Error('Failed to fetch categories');
+        }
+
+        const categoriesData = await categoriesResponse.json();
+        console.log('Categories data:', categoriesData); // Debug log
+
+        // Find the matching category
+        const category = categoriesData.categories.find((cat) => cat.id.toString() === categoryId);
+        console.log('Found category:', category); // Debug log
+
+        if (category) {
+          setCategoryName(category.name);
         } else {
-          navigate('/chat');
+          console.error('Category not found:', categoryId); // Debug log
+          setError('Invalid category');
+          navigate(`/v/${roomUrl}`);
         }
       } catch (error) {
-        console.error('Error fetching room:', error);
-        setError('Failed to load room data');
+        console.error('Error fetching data:', error);
+        setError('Failed to load data');
       }
     };
 
-    if (roomUrl) {
-      fetchRoomData();
+    if (roomUrl && categoryId) {
+      fetchRoomAndCategoryData();
     } else {
       navigate('/chat');
     }
-  }, [roomUrl, navigate]);
+  }, [roomUrl, categoryId, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,6 +94,7 @@ const CreateChannel = ({ theme }) => {
           name: channelName.toLowerCase().trim(),
           description: description.trim(),
           isNsfw,
+          categoryId,
         }),
       });
 
@@ -99,7 +128,10 @@ const CreateChannel = ({ theme }) => {
             <div className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
               <div className="card-body">
                 <h2 className="card-title text-center mb-4">Create New Channel</h2>
-                {room && <h6 className="text-center mb-4">in {room.name}</h6>}
+                {room && <h6 className="text-center mb-2">in {room.name}</h6>}
+                {categoryName && (
+                  <h6 className={`text-center mb-4 ${theme === 'dark' ? 'text-light' : 'text-muted'}`}>Category: {categoryName}</h6>
+                )}
 
                 {error && <div className="alert alert-danger">{error}</div>}
 
@@ -133,7 +165,7 @@ const CreateChannel = ({ theme }) => {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows="3"
-                      placeholder="Channel description (optional)"
+                      placeholder="Channel description"
                       maxLength={500}
                     />
                   </div>
@@ -149,7 +181,6 @@ const CreateChannel = ({ theme }) => {
                       />
                       <label className="form-check-label" htmlFor="isNsfw">
                         NSFW Content
-                        <small className="d-block text-secondary">Mark channel as containing adult/mature content</small>
                       </label>
                     </div>
                   </div>

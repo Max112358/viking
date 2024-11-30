@@ -4,27 +4,40 @@ const db = require('../db');
 
 exports.createThread = async (req, res) => {
   const { channelId } = req.params;
-  const { subject, content, isAnonymous } = req.body;
   const userId = req.user.userId;
+
+  console.log('Request body:', req.body); // Debug log
+  console.log('Request file:', req.file); // Debug log
 
   try {
     const result = await db.transaction(async (client) => {
+      // First, verify that the channel exists and get its room_id
+      const channelCheck = await client.query('SELECT room_id FROM channels WHERE id = $1', [channelId]);
+
+      if (channelCheck.rows.length === 0) {
+        throw new Error('Channel not found');
+      }
+
+      const roomId = channelCheck.rows[0].room_id;
+
       // Check if user is a member of the room
-      const memberCheck = await client.query(
-        `SELECT 1 FROM room_members rm 
-         JOIN channels c ON c.room_id = rm.room_id 
-         WHERE c.id = $1 AND rm.user_id = $2`,
-        [channelId, userId]
-      );
+      const memberCheck = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
 
       if (memberCheck.rows.length === 0) {
         throw new Error('User is not a member of this room');
       }
 
+      // Get form data from request body
+      const { subject, content, isAnonymous } = req.body;
+
+      if (!content) {
+        throw new Error('Message content is required');
+      }
+
       // Create thread
       const threadResult = await client.query(
         'INSERT INTO threads (channel_id, subject, author_id, is_anonymous) VALUES ($1, $2, $3, $4) RETURNING id, url_id',
-        [channelId, subject, userId, isAnonymous]
+        [channelId, subject || 'Untitled Thread', userId, isAnonymous === 'true']
       );
 
       const threadId = threadResult.rows[0].id;
@@ -59,7 +72,9 @@ exports.createThread = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating thread:', error);
-    res.status(error.message === 'User is not a member of this room' ? 403 : 500).json({ message: error.message });
+    res.status(error.message === 'User is not a member of this room' ? 403 : 500).json({
+      message: error.message,
+    });
   }
 };
 

@@ -185,7 +185,7 @@ const ChatInterface = ({ theme }) => {
 
   const handleCreateThread = () => {
     if (selectedChannel) {
-      navigate(`/v/${selectedRoom.url_name}/create-thread`);
+      navigate(`/v/${selectedRoom.url_name}/${selectedChannel.url_id}/create-thread`);
     }
   };
 

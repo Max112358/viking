@@ -3,10 +3,15 @@ const db = require('../db');
 
 exports.createChannel = async (req, res) => {
   const { roomId } = req.params;
-  const { name, description, isNsfw } = req.body;
+  const { name, description, isNsfw, categoryId } = req.body;
   const userId = req.user.userId;
 
   try {
+    // Validate category requirement
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Category is required' });
+    }
+
     await db.transaction(async (client) => {
       // Check if user is room admin
       const adminCheck = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2 AND is_admin = true', [
@@ -18,10 +23,17 @@ exports.createChannel = async (req, res) => {
         throw new Error('Only room admins can create channels');
       }
 
+      // Verify category exists and belongs to the room
+      const categoryCheck = await client.query('SELECT 1 FROM channel_categories WHERE id = $1 AND room_id = $2', [categoryId, roomId]);
+
+      if (categoryCheck.rows.length === 0) {
+        throw new Error('Invalid category');
+      }
+
       // Create the channel
       const result = await client.query(
-        'INSERT INTO channels (room_id, name, description, is_nsfw) VALUES ($1, $2, $3, $4) RETURNING id, url_id',
-        [roomId, name, description, isNsfw]
+        'INSERT INTO channels (room_id, category_id, name, description, is_nsfw) VALUES ($1, $2, $3, $4, $5) RETURNING id, url_id',
+        [roomId, categoryId, name, description, isNsfw]
       );
 
       res.status(201).json({
@@ -32,7 +44,11 @@ exports.createChannel = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating channel:', error);
-    res.status(error.message === 'Only room admins can create channels' ? 403 : 500).json({ message: error.message });
+    if (error.code === '23505') {
+      res.status(400).json({ message: 'A channel with this name already exists in this room' });
+    } else {
+      res.status(error.message === 'Only room admins can create channels' ? 403 : 500).json({ message: error.message });
+    }
   }
 };
 

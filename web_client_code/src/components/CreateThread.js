@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../config';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CreateThread = ({ theme }) => {
-  const { roomUrl, channelId } = useParams();
+  const { roomUrl, channelId } = useParams(); // Add channelId from URL params
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -14,98 +14,82 @@ const CreateThread = ({ theme }) => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [channels, setChannels] = useState([]);
-  const [selectedChannel, setSelectedChannel] = useState(channelId || '');
+  const [channel, setChannel] = useState(null);
   const navigate = useNavigate();
-  const userId = localStorage.getItem('userId');
   const authToken = localStorage.getItem('authToken');
   const [room, setRoom] = useState(null);
 
   useEffect(() => {
-    if (!roomUrl) {
+    if (!roomUrl || !channelId) {
       navigate('/chat');
       return;
     }
 
-    // First fetch room data
-    const fetchRoomData = async () => {
+    const fetchRoomAndChannelData = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
+        // Fetch room data
+        const roomResponse = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
         });
 
-        if (response.ok) {
-          const roomData = await response.json();
-          setRoom(roomData);
-          // After getting room data, fetch channels
-          fetchChannels(roomData.room_id);
-        } else {
-          navigate('/chat');
+        if (!roomResponse.ok) {
+          throw new Error('Failed to fetch room data');
         }
-      } catch (error) {
-        console.error('Error fetching room:', error);
-        setError('Failed to load room data');
-      }
-    };
 
-    const fetchChannels = async (roomId) => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/channels/${roomId}`, {
+        const roomData = await roomResponse.json();
+        setRoom(roomData);
+
+        // Fetch channel data
+        const channelsResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          setChannels(data.channels);
-          if (data.channels.length > 0 && !selectedChannel) {
-            setSelectedChannel(data.channels[0].id);
-          }
+        if (!channelsResponse.ok) {
+          throw new Error('Failed to fetch channels');
         }
+
+        const channelsData = await channelsResponse.json();
+
+        // Find the specific channel from all categories
+        const targetChannel = channelsData.categories.reduce((found, category) => {
+          if (found) return found;
+          return category.channels.find((ch) => ch.url_id === channelId);
+        }, null);
+
+        if (!targetChannel) {
+          throw new Error('Channel not found');
+        }
+
+        setChannel(targetChannel);
       } catch (error) {
-        console.error('Error fetching channels:', error);
-        setError('Failed to load channels');
+        console.error('Error fetching data:', error);
+        setError(error.message || 'Failed to load data');
+        navigate(`/v/${roomUrl}`);
       }
     };
 
-    fetchRoomData();
-  }, [roomUrl, authToken, navigate, channelId, selectedChannel]);
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(`url(${url})`);
-    }
-  };
+    fetchRoomAndChannelData();
+  }, [roomUrl, channelId, authToken, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    if (!selectedChannel) {
-      setError('Please select a channel');
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const formData = new FormData();
       formData.append('subject', subject);
       formData.append('content', message);
-      formData.append('userId', userId);
       formData.append('isAnonymous', isAnonymous);
-      formData.append('channelId', selectedChannel);
       if (image) {
         formData.append('image', image);
       }
 
-      const response = await fetch(`${API_BASE_URL}/threads/${selectedChannel}`, {
+      const response = await fetch(`${API_BASE_URL}/threads/${channel.id}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -116,12 +100,9 @@ const CreateThread = ({ theme }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Navigate using the URL structure
-        navigate(`/v/${roomUrl}`);
+        navigate(`/v/${roomUrl}/${channelId}`);
       } else if (response.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userEmail');
+        localStorage.clear();
         navigate('/login');
       } else {
         setError(data.message || 'Failed to create thread');
@@ -134,10 +115,6 @@ const CreateThread = ({ theme }) => {
     }
   };
 
-  const handleCancel = () => {
-    navigate(`/v/${roomUrl}`);
-  };
-
   return (
     <div className={`min-vh-100 py-5 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}>
       <div className="container">
@@ -146,28 +123,25 @@ const CreateThread = ({ theme }) => {
             <div className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
               <div className="card-body">
                 <h2 className="card-title text-center mb-4">Create New Thread</h2>
+                {room && <h6 className="text-center mb-2">in {room.name}</h6>}
+                {channel && <h6 className={`text-center mb-4 ${theme === 'dark' ? 'text-light' : 'text-muted'}`}>#{channel.name}</h6>}
 
                 {error && <div className="alert alert-danger">{error}</div>}
 
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
-                    <label htmlFor="channel" className="form-label">
-                      Channel
+                    <label htmlFor="subject" className="form-label">
+                      Subject
                     </label>
-                    <select
-                      className="form-select"
-                      id="channel"
-                      value={selectedChannel}
-                      onChange={(e) => setSelectedChannel(e.target.value)}
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="subject"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
                       required
-                    >
-                      <option value="">Select a channel</option>
-                      {channels.map((channel) => (
-                        <option key={channel.id} value={channel.id}>
-                          {channel.name}
-                        </option>
-                      ))}
-                    </select>
+                      maxLength={255}
+                    />
                   </div>
 
                   <div className="mb-3">
@@ -189,42 +163,44 @@ const CreateThread = ({ theme }) => {
                     <label htmlFor="image" className="form-label">
                       Image
                     </label>
-                    <input type="file" className="form-control" id="image" accept="image/*" onChange={handleImageChange} />
+                    <input
+                      type="file"
+                      className="form-control"
+                      id="image"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          setImage(file);
+                          setPreviewUrl(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
                     {previewUrl && (
-                      <div
-                        className="mt-2 image-preview"
-                        style={{
-                          backgroundImage: previewUrl,
-                          backgroundSize: 'contain',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'center',
-                          width: '100%',
-                          height: '200px',
-                        }}
-                      />
+                      <div className="mt-2">
+                        <img src={previewUrl} alt="Preview" className="img-fluid" style={{ maxHeight: '200px' }} />
+                      </div>
                     )}
                   </div>
 
-                  <div className="mb-3 d-flex align-items-center justify-content-between">
-                    <label htmlFor="isAnonymous" className="form-label mb-0">
-                      Anonymous Mode
+                  <div className="mb-3 form-check form-switch">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="isAnonymous"
+                      checked={isAnonymous}
+                      onChange={(e) => setIsAnonymous(e.target.checked)}
+                    />
+                    <label className="form-check-label" htmlFor="isAnonymous">
+                      Post Anonymously
                     </label>
-                    <div className="form-check form-switch">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="isAnonymous"
-                        checked={isAnonymous}
-                        onChange={(e) => setIsAnonymous(e.target.checked)}
-                      />
-                    </div>
                   </div>
 
                   <div className="d-grid gap-2">
                     <button type="submit" className="btn btn-primary" disabled={isLoading}>
                       {isLoading ? 'Creating...' : 'Create Thread'}
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+                    <button type="button" className="btn btn-secondary" onClick={() => navigate(`/v/${roomUrl}/${channelId}`)}>
                       Cancel
                     </button>
                   </div>
