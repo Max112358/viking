@@ -132,48 +132,76 @@ exports.getThreads = async (req, res) => {
 };
 
 exports.getPosts = async (req, res) => {
-  const { threadId } = req.params;
+  const { threadId } = req.params; // This is now the url_id
   const { page = 1, limit = 50 } = req.query;
   const offset = (page - 1) * limit;
   const userId = req.user.userId;
 
   try {
-    // Check if user is a member of the room that contains this thread
-    const memberCheck = await db.query(
-      `
-      SELECT 1 FROM room_members rm
-      JOIN threads t ON t.room_id = rm.room_id
-      WHERE t.id = $1 AND rm.user_id = $2
-      `,
-      [threadId, userId]
+    // First, get the thread details along with room membership check - now using url_id
+    const threadResult = await db.query(
+      `SELECT t.*, 
+              c.room_id,
+              CASE WHEN t.is_anonymous THEN NULL ELSE u.email END as author_email
+       FROM threads t
+       JOIN channels c ON t.channel_id = c.id
+       LEFT JOIN users u ON t.author_id = u.id
+       WHERE t.url_id = $1`,
+      [threadId]
     );
+
+    if (threadResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Thread not found' });
+    }
+
+    const thread = threadResult.rows[0];
+
+    // Check if user is a member of the room
+    const memberCheck = await db.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [thread.room_id, userId]);
 
     if (memberCheck.rows.length === 0) {
       return res.status(403).json({ message: 'User is not a member of this room' });
     }
 
-    const posts = await db.query(
-      `
-      SELECT 
-        p.id,
-        p.content,
-        p.created_at,
-        p.updated_at,
-        CASE 
-          WHEN t.is_anonymous THEN NULL 
-          ELSE u.email 
-        END as author_email
-      FROM posts p
-      JOIN threads t ON p.thread_id = t.id
-      LEFT JOIN users u ON p.author_id = u.id
-      WHERE p.thread_id = $1
-      ORDER BY p.created_at ASC
-      LIMIT $2 OFFSET $3
-    `,
-      [threadId, limit, offset]
+    // Get the posts with author information
+    const postsResult = await db.query(
+      `SELECT p.*,
+              CASE WHEN t.is_anonymous THEN NULL ELSE u.email END as author_email,
+              json_agg(json_build_object(
+                'id', fa.id,
+                'file_url', fa.file_url,
+                'file_type', fa.file_type
+              )) FILTER (WHERE fa.id IS NOT NULL) as attachments
+       FROM posts p
+       JOIN threads t ON p.thread_id = t.id
+       LEFT JOIN users u ON p.author_id = u.id
+       LEFT JOIN file_attachments fa ON fa.post_id = p.id
+       WHERE p.thread_id = $1
+       GROUP BY p.id, t.is_anonymous, u.email
+       ORDER BY p.created_at ASC
+       LIMIT $2 OFFSET $3`,
+      [thread.id, limit, offset] // Using the actual thread.id here after looking it up
     );
 
-    res.json({ posts: posts.rows });
+    // Get total post count for pagination
+    const countResult = await db.query('SELECT COUNT(*) FROM posts WHERE thread_id = $1', [thread.id]);
+
+    res.json({
+      thread: {
+        id: thread.id,
+        url_id: thread.url_id,
+        subject: thread.subject,
+        created_at: thread.created_at,
+        is_locked: thread.is_locked,
+        author_email: thread.author_email,
+      },
+      posts: postsResult.rows,
+      pagination: {
+        total: parseInt(countResult.rows[0].count),
+        page: parseInt(page),
+        limit: parseInt(limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching posts:', error);
     res.status(500).json({ message: 'Error fetching posts' });
@@ -181,25 +209,42 @@ exports.getPosts = async (req, res) => {
 };
 
 exports.createPost = async (req, res) => {
-  const { threadId } = req.params;
+  const { threadId } = req.params; // This is now the url_id
   const { content } = req.body;
   const userId = req.user.userId;
 
   try {
     await db.transaction(async (client) => {
+      // First get the actual thread ID using the url_id
+      const threadResult = await client.query('SELECT id FROM threads WHERE url_id = $1', [threadId]);
+
+      if (threadResult.rows.length === 0) {
+        throw new Error('Thread not found');
+      }
+
+      const actualThreadId = threadResult.rows[0].id;
+
       // Check if user is a member of the room containing this thread
       const roomCheck = await client.query(
-        `
-        SELECT r.posts_per_thread, t.is_locked
-        FROM rooms r
-        JOIN threads t ON t.room_id = r.room_id
-        JOIN room_members rm ON r.id = rm.room_id
-        WHERE t.id = $1 AND rm.user_id = $2
-        `,
-        [threadId, userId]
+        `SELECT r.posts_per_thread, t.is_locked, r.id as room_id
+         FROM rooms r
+         JOIN channels c ON c.room_id = r.id
+         JOIN threads t ON t.channel_id = c.id
+         WHERE t.id = $1`,
+        [actualThreadId]
       );
 
       if (roomCheck.rows.length === 0) {
+        throw new Error('Thread not found');
+      }
+
+      // Verify room membership
+      const memberCheck = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2', [
+        roomCheck.rows[0].room_id,
+        userId,
+      ]);
+
+      if (memberCheck.rows.length === 0) {
         throw new Error('User is not a member of this room');
       }
 
@@ -208,18 +253,18 @@ exports.createPost = async (req, res) => {
       }
 
       // Count existing posts
-      const postCount = await client.query('SELECT COUNT(*) FROM posts WHERE thread_id = $1', [threadId]);
+      const postCount = await client.query('SELECT COUNT(*) FROM posts WHERE thread_id = $1', [actualThreadId]);
 
       const postLimit = roomCheck.rows[0].posts_per_thread;
       if (postLimit && parseInt(postCount.rows[0].count) >= postLimit) {
         // Lock the thread when limit is reached
-        await client.query('UPDATE threads SET is_locked = true WHERE id = $1', [threadId]);
+        await client.query('UPDATE threads SET is_locked = true WHERE id = $1', [actualThreadId]);
         throw new Error('Thread has reached its post limit and is now locked');
       }
 
       // Create the post
       const postResult = await client.query('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [
-        threadId,
+        actualThreadId,
         userId,
         content,
       ]);
@@ -235,7 +280,7 @@ exports.createPost = async (req, res) => {
       }
 
       // Update thread's last_activity
-      await client.query('UPDATE threads SET last_activity = CURRENT_TIMESTAMP WHERE id = $1', [threadId]);
+      await client.query('UPDATE threads SET last_activity = CURRENT_TIMESTAMP WHERE id = $1', [actualThreadId]);
     });
 
     res.status(201).json({ message: 'Post created successfully' });
@@ -246,6 +291,7 @@ exports.createPost = async (req, res) => {
         'User is not a member of this room': 403,
         'Thread is locked': 403,
         'Thread has reached its post limit and is now locked': 403,
+        'Thread not found': 404,
       }[error.message] || 500;
 
     res.status(status).json({ message: error.message });

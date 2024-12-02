@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../../config';
 import RoomSidebar from './RoomSidebar';
 import ChannelSidebar from './ChannelSidebar';
 import ThreadList from './ThreadList';
+import Thread from './Thread';
 import ContextMenu from './ContextMenu';
 import useResponsive from '../../hooks/useResponsive';
 import useFetch from '../../hooks/useFetch';
@@ -332,13 +333,24 @@ const ChatInterface = ({ theme }) => {
         }}
       >
         {selectedChannel ? (
-          <ThreadList
-            selectedChannel={selectedChannel}
-            threads={threads}
-            onThreadSelect={handleThreadSelect}
-            onCreateThread={handleCreateThread}
-            theme={theme}
-          />
+          threadId ? (
+            <Thread
+              threadId={threadId}
+              theme={theme}
+              onBack={() => {
+                navigate(`/v/${selectedRoom.url_name}/${selectedChannel.url_id}`);
+                setSelectedThread(null);
+              }}
+            />
+          ) : (
+            <ThreadList
+              selectedChannel={selectedChannel}
+              threads={threads}
+              onThreadSelect={handleThreadSelect}
+              onCreateThread={handleCreateThread}
+              theme={theme}
+            />
+          )
         ) : (
           <div className="h-100 d-flex align-items-center justify-content-center">
             <p>{selectedRoom ? 'Select a channel to view threads' : 'Select a room to view channels'}</p>
