@@ -359,7 +359,15 @@ const ChatInterface = ({ theme }) => {
       </div>
 
       {/* Logout Button */}
-      <button className={`btn btn-sm btn-outline-danger position-fixed top-0 end-0 m-2 z-3`} onClick={handleLogout}>
+      <button
+        className="btn btn-sm btn-outline-danger position-fixed"
+        onClick={handleLogout}
+        style={{
+          top: '10px',
+          right: '10px',
+          zIndex: 9999, // Ensure it's always on top
+        }}
+      >
         <i className="bi bi-box-arrow-right"></i> Logout
       </button>
 

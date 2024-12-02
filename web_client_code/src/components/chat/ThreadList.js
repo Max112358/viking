@@ -6,10 +6,11 @@ const ThreadList = ({ selectedChannel, threads, onThreadSelect, onCreateThread, 
   return (
     <div className="h-100 d-flex flex-column">
       <div className="p-3 border-bottom">
-        <div className="d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">#{selectedChannel.name}</h5>
-          <button onClick={onCreateThread} className="btn btn-success">
-            New Thread
+        <div className="d-flex align-items-center" style={{ paddingRight: '70px' }}>
+          <i className="bi bi-hash me-2"></i>
+          <h5 className="mb-0 me-3">{selectedChannel.name}</h5>
+          <button onClick={onCreateThread} className="btn btn-success btn-sm" title="Create New Thread">
+            <i className="bi bi-chat-dots"></i>
           </button>
         </div>
       </div>
