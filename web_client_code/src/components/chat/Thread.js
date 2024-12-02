@@ -19,7 +19,6 @@ const Thread = ({ threadId, theme, onBack }) => {
     setShouldAutoScroll(isAtBottom);
   };
 
-  // Add auto-scroll effect when posts update
   useEffect(() => {
     if (shouldAutoScroll && scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
@@ -85,7 +84,6 @@ const Thread = ({ threadId, theme, onBack }) => {
       const data = await updatedResponse.json();
       setPosts(data.posts || []);
       setNewPost('');
-      // Force scroll to bottom after posting
       setShouldAutoScroll(true);
     } catch (error) {
       console.error('Error creating post:', error);
@@ -93,7 +91,6 @@ const Thread = ({ threadId, theme, onBack }) => {
     }
   };
 
-  // Function to format post content with line breaks
   const formatContent = (content) => {
     return content.split('\n').map((line, index, array) => (
       <React.Fragment key={index}>
@@ -128,6 +125,70 @@ const Thread = ({ threadId, theme, onBack }) => {
     }
   };
 
+  const renderGroupedPosts = () => {
+    const groupedPosts = [];
+    let currentGroup = [];
+
+    posts.forEach((post, index) => {
+      const prevPost = posts[index - 1];
+      const shouldStartNewGroup = () => {
+        if (!prevPost) return true;
+
+        const timeDiff = new Date(post.created_at) - new Date(prevPost.created_at);
+        const fiveMinutes = 5 * 60 * 1000;
+
+        return post.author_id !== prevPost.author_id || timeDiff > fiveMinutes;
+      };
+
+      if (shouldStartNewGroup()) {
+        if (currentGroup.length > 0) {
+          groupedPosts.push([...currentGroup]);
+          currentGroup = [];
+        }
+        currentGroup.push(post);
+      } else {
+        currentGroup.push(post);
+      }
+    });
+
+    if (currentGroup.length > 0) {
+      groupedPosts.push(currentGroup);
+    }
+
+    return groupedPosts.map((group, groupIndex) => (
+      <div key={group[0].id} className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
+        <div className="card-body">
+          <div className={`small mb-2 ${theme === 'dark' ? 'text-light-emphasis' : 'text-muted'}`}>
+            <strong>{group[0].author_email ? group[0].author_email : 'Anonymous'}</strong> • {formatPostDate(group[0].created_at)}
+          </div>
+          {group.map((post, postIndex) => (
+            <div key={post.id} className={postIndex > 0 ? 'mt-3' : ''}>
+              <div className="card-text" style={{ whiteSpace: 'pre-line' }}>
+                {formatContent(post.content)}
+              </div>
+              {post.attachments && post.attachments.length > 0 && (
+                <div className="mt-2">
+                  {post.attachments.map((attachment) => (
+                    <div key={attachment.id}>
+                      {attachment.file_type.startsWith('image/') && (
+                        <img
+                          src={`${API_BASE_URL}${attachment.file_url}`}
+                          alt="Attachment"
+                          className="img-fluid rounded"
+                          style={{ maxHeight: '300px' }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    ));
+  };
+
   if (isLoading) {
     return (
       <div className="h-100 d-flex align-items-center justify-content-center">
@@ -156,36 +217,7 @@ const Thread = ({ threadId, theme, onBack }) => {
       </div>
 
       <div ref={scrollContainerRef} className="flex-grow-1 overflow-auto p-3" onScroll={handleScroll}>
-        <div className="d-flex flex-column gap-3">
-          {posts.map((post) => (
-            <div key={post.id} className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
-              <div className="card-body">
-                <div className={`small mb-2 ${theme === 'dark' ? 'text-light-emphasis' : 'text-muted'}`}>
-                  <strong>{post.author_email ? post.author_email : 'Anonymous'}</strong> • {formatPostDate(post.created_at)}
-                </div>
-                <div className="card-text" style={{ whiteSpace: 'pre-line' }}>
-                  {formatContent(post.content)}
-                </div>
-                {post.attachments && post.attachments.length > 0 && (
-                  <div className="mt-2">
-                    {post.attachments.map((attachment) => (
-                      <div key={attachment.id}>
-                        {attachment.file_type.startsWith('image/') && (
-                          <img
-                            src={`${API_BASE_URL}${attachment.file_url}`}
-                            alt="Attachment"
-                            className="img-fluid rounded"
-                            style={{ maxHeight: '300px' }}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="d-flex flex-column gap-3">{renderGroupedPosts()}</div>
       </div>
 
       <div className="p-3 border-top">
