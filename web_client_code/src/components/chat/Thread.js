@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// components/chat/Thread.js
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../../config';
 
 const Thread = ({ threadId, theme, onBack }) => {
@@ -7,6 +8,23 @@ const Thread = ({ threadId, theme, onBack }) => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
+  const scrollContainerRef = useRef(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 10;
+    setShouldAutoScroll(isAtBottom);
+  };
+
+  // Add auto-scroll effect when posts update
+  useEffect(() => {
+    if (shouldAutoScroll && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [posts, shouldAutoScroll]);
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -67,6 +85,8 @@ const Thread = ({ threadId, theme, onBack }) => {
       const data = await updatedResponse.json();
       setPosts(data.posts || []);
       setNewPost('');
+      // Force scroll to bottom after posting
+      setShouldAutoScroll(true);
     } catch (error) {
       console.error('Error creating post:', error);
       setError(error.message);
@@ -135,7 +155,7 @@ const Thread = ({ threadId, theme, onBack }) => {
         <h5 className="mb-0">{thread?.subject || 'Loading...'}</h5>
       </div>
 
-      <div className="flex-grow-1 overflow-auto p-3">
+      <div ref={scrollContainerRef} className="flex-grow-1 overflow-auto p-3" onScroll={handleScroll}>
         <div className="d-flex flex-column gap-3">
           {posts.map((post) => (
             <div key={post.id} className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
@@ -146,6 +166,22 @@ const Thread = ({ threadId, theme, onBack }) => {
                 <div className="card-text" style={{ whiteSpace: 'pre-line' }}>
                   {formatContent(post.content)}
                 </div>
+                {post.attachments && post.attachments.length > 0 && (
+                  <div className="mt-2">
+                    {post.attachments.map((attachment) => (
+                      <div key={attachment.id}>
+                        {attachment.file_type.startsWith('image/') && (
+                          <img
+                            src={`${API_BASE_URL}${attachment.file_url}`}
+                            alt="Attachment"
+                            className="img-fluid rounded"
+                            style={{ maxHeight: '300px' }}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
