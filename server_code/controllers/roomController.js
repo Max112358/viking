@@ -2,7 +2,7 @@
 // controllers/roomController.js
 const path = require('path');
 const fs = require('fs');
-const db = require('../db');
+const db = require('../database');
 const { destroyRoom } = require('../services/roomService');
 
 exports.createRoom = async (req, res) => {

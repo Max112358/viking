@@ -1,5 +1,5 @@
 // controllers/friendController.js
-const db = require('../db');
+const db = require('../database');
 
 exports.getFriends = async (req, res) => {
   const userId = req.user.userId;

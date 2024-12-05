@@ -1,6 +1,6 @@
 // part of backend
 // controllers/threadController.js
-const db = require('../db');
+const db = require('../database');
 
 exports.createThread = async (req, res) => {
   const { channelId } = req.params;

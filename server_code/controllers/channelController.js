@@ -1,5 +1,5 @@
 // controllers/channelController.js
-const db = require('../db');
+const db = require('../database');
 
 exports.createChannel = async (req, res) => {
   const { roomId } = req.params;

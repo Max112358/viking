@@ -1,5 +1,5 @@
 // controllers/categoryController.js
-const db = require('../db');
+const db = require('../database');
 
 exports.createCategory = async (req, res) => {
   const { roomId } = req.params;

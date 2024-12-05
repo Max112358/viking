@@ -54,7 +54,7 @@ function App() {
   );
 }
 
-//frontend file structure DO NOT DELETE THIS
+//frontend file structure. You can modify, but DO NOT DELETE THIS
 /*
 src/
   ├── hooks/
@@ -66,6 +66,7 @@ src/
   |   |  ├─ ContextMenu.js
   |   |  ├─ RoomSidebar.js
   |   |  ├─ ThreadList.js
+  |   |  ├─ Thread.js
   |   |  └─ ChannelSidebar.js
   |   ├─ create-room/
   |   |  ├─ CreateRoom.js
@@ -73,12 +74,18 @@ src/
   |   |  ├─ index.js
   |   |  ├─ Layout.js
   |   |  └─ SettingsForm.js
+  |   ├─ friend-list/
+  |   |  ├─ AddFriend.js
+  |   |  ├─ FriendRequests.js
+  |   |  ├─ FriendSidebar.js
+  |   |  ├─ Layout.js
+  |   |  └─ index.js
   |   ├─ CreateChannel.js
   |   ├─ CreateThread.js
+  |   ├─ CreateCategory.js
   |   ├─ ForgotPassword.js
   |   ├─ Login.js
   |   ├─ Register.js
-  |   ├─ CreateCategory.js
   |   └─ ResetPassword.js
   ├── App.js
   ├── config.js
@@ -86,5 +93,4 @@ src/
   ├── setupTests.js
   └── colors.css
   */
-
 export default App;

@@ -4,7 +4,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 require('dotenv').config();
-const db = require('./db');
+const db = require('./database'); // Updated to use new database folder
 const multer = require('multer');
 const upload = multer();
 
@@ -48,34 +48,54 @@ app.use('/threads', require('./routes/threads'));
 app.use('/users', require('./routes/users'));
 app.use('/friends', require('./routes/friends'));
 
-
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
 
-//backend file structure DO NOT DELETE THIS
+//backend file structure. You can modify, but DO NOT DELETE THIS
 /*
 project/
   ├── controllers/
-  ├─────authController.js
-  ├─────roomController.js
-  ├─────threadController.js
-  ├─────channelController.js
-  ├─────categoryController.js
+  |   ├── authController.js
+  |   ├── roomController.js
+  |   ├── threadController.js
+  |   ├── channelController.js
+  |   ├── categoryController.js
+  |   └── friendController.js
+  ├── database/
+  |   ├── functions/
+  |   |   ├── index.js
+  |   |   ├── timestamp.js
+  |   |   └── urlGeneration.js
+  |   ├── tables/
+  |   |   ├── index.js
+  |   |   ├── userTables.js
+  |   |   ├── roomTables.js
+  |   |   ├── channelTables.js
+  |   |   └── threadTables.js
+  |   ├── triggers/
+  |   |   ├── index.js
+  |   |   ├── timestampTriggers.js
+  |   |   ├── positionTriggers.js
+  |   |   └── urlTriggers.js
+  |   ├── index.js
+  |   ├── initialize.js
+  |   └── rebuild.js
   ├── middleware/
-  ├─────fileUpload.js
-  ├─────auth.js
+  |   ├── fileUpload.js
+  |   └── auth.js
   ├── routes/
-  ├─────auth.js
-  ├─────rooms.js
-  ├─────users.js
-  ├─────threads.js
-  ├─────categories.js
+  |   ├── auth.js
+  |   ├── rooms.js
+  |   ├── users.js
+  |   ├── threads.js
+  |   ├── categories.js
+  |   ├── channels.js
+  |   └── friends.js
   ├── services/
-  ├─────roomService.js
+  |   └── roomService.js
   ├── public/
-  │   └── uploads/
-  ├── server.js
-  └── db.js
+  |   └── uploads/
+  └── server.js
   */
