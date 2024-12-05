@@ -132,17 +132,28 @@ const initializeDatabase = async () => {
     console.log('User profiles table ensured');
 
     // 3. Create friendships table (depends on users)
+    // Create friendships table
     await client.query(`
       CREATE TABLE IF NOT EXISTS friendships (
+        id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         friend_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'blocked')),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (user_id, friend_id)
+        UNIQUE(user_id, friend_id)
       )
     `);
     console.log('Friendships table ensured');
+
+    // Add trigger for updated_at
+    await client.query(`
+      DROP TRIGGER IF EXISTS update_friendship_timestamp ON friendships;
+      CREATE TRIGGER update_friendship_timestamp
+        BEFORE UPDATE ON friendships
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    `);
 
     // 4. Create rooms table (no dependencies) - Updated with url_name
     await client.query(`

@@ -14,6 +14,8 @@ const ChatInterface = ({ theme }) => {
   const navigate = useNavigate();
   const { roomUrl, channelId, threadId } = useParams();
   const { isMobile } = useResponsive();
+  // Add a mounted ref to prevent state updates after unmounting
+  const isMounted = React.useRef(true);
 
   // State management
   const [rooms, setRooms] = useState([]);
@@ -79,6 +81,8 @@ const ChatInterface = ({ theme }) => {
 
   // Fetch rooms
   const fetchRooms = useCallback(async () => {
+    if (!isMounted.current) return;
+
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -91,6 +95,8 @@ const ChatInterface = ({ theme }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (!isMounted.current) return;
 
       if (response.status === 401) {
         handleInvalidToken();
@@ -111,6 +117,26 @@ const ChatInterface = ({ theme }) => {
       console.error('Error fetching rooms:', error);
     }
   }, [handleInvalidToken, roomUrl, fetchAndUpdateRoom]);
+
+  // Add cleanup and refetch effect
+  useEffect(() => {
+    isMounted.current = true;
+    fetchRooms();
+
+    return () => {
+      isMounted.current = false;
+    };
+  }, [fetchRooms]);
+
+  // Add focus effect to refetch rooms when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchRooms();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchRooms]);
 
   // Initial setup
   useEffect(() => {

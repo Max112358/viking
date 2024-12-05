@@ -46,6 +46,8 @@ app.use('/categories', require('./routes/categories'));
 app.use('/channels', require('./routes/channels'));
 app.use('/threads', require('./routes/threads'));
 app.use('/users', require('./routes/users'));
+app.use('/friends', require('./routes/friends'));
+
 
 // Start server
 app.listen(PORT, () => {
