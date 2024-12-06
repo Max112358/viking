@@ -10,6 +10,7 @@ import CreateThread from './components/CreateThread';
 import CreateCategory from './components/CreateCategory';
 import CreateChannel from './components/CreateChannel'; // Add this import
 import CreateRoom from './components/create-room/CreateRoom';
+import FriendsPage from './components/friend-list/FriendsPage';
 import './colors.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -46,6 +47,7 @@ function App() {
             <Route path="/v/:roomUrl/:channelId/:threadId" element={<ChatInterface theme={theme} />} />
             {/* Keep create thread route but update it to match new URL pattern */}
             <Route path="/v/:roomUrl/:channelId/create-thread" element={<CreateThread theme={theme} />} />
+            <Route path="/friends" element={<FriendsPage theme={theme} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </Router>

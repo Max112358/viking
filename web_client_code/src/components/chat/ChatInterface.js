@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../config';
-import RoomSidebar from './RoomSidebar';
+import MainNavigation from '../navigation/MainNavigation';
 import ChannelSidebar from './ChannelSidebar';
 import ThreadList from './ThreadList';
 import Thread from './Thread';
@@ -305,22 +305,14 @@ const ChatInterface = ({ theme }) => {
         </>
       )}
 
-      {/* Rooms Sidebar */}
+      {/* navigation Sidebar */}
       <div
         className={`position-fixed start-0 top-0 h-100 border-end ${showRoomSidebar ? '' : 'translate-x-[-100%]'} ${
           theme === 'dark' ? 'bg-dark text-light border-secondary' : 'bg-light text-dark border-light'
         } transition-transform duration-300`}
         style={{ width: '54px', zIndex: 2 }}
       >
-        <RoomSidebar
-          rooms={rooms}
-          selectedRoom={selectedRoom}
-          onRoomSelect={handleRoomSelect}
-          onCreateRoom={handleCreateRoom}
-          onRoomContextMenu={handleContextMenu}
-          getRoomDisplay={getRoomDisplay}
-          theme={theme}
-        />
+        <MainNavigation rooms={rooms} selectedRoom={selectedRoom} onRoomSelect={handleRoomSelect} theme={theme} activeSection="chat" />
       </div>
 
       {/* Channels Sidebar */}
