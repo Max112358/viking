@@ -15,7 +15,9 @@ import './colors.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 function App() {
-  const [theme, setTheme] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const [theme, setTheme] = useState(
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  );
 
   useEffect(() => {
     // Listen for changes in system theme preference
@@ -34,7 +36,8 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Login theme={theme} />} />
-            <Route path="/login" element={<Login theme={theme} />} /> {/* Duplicate link, for ease of navigation */}
+            <Route path="/login" element={<Login theme={theme} />} />{' '}
+            {/* Duplicate link, for ease of navigation */}
             <Route path="/chat" element={<ChatInterface theme={theme} />} />
             <Route path="/forgot-password" element={<ForgotPassword theme={theme} />} />
             <Route path="/register" element={<Register theme={theme} />} />
@@ -42,11 +45,20 @@ function App() {
             {/* New URL-based routes */}
             <Route path="/v/:roomUrl" element={<ChatInterface theme={theme} />} />
             <Route path="/v/:roomUrl/create-category" element={<CreateCategory theme={theme} />} />
-            <Route path="/v/:roomUrl/create-channel/:categoryId" element={<CreateChannel theme={theme} />} />
+            <Route
+              path="/v/:roomUrl/create-channel/:categoryId"
+              element={<CreateChannel theme={theme} />}
+            />
             <Route path="/v/:roomUrl/:channelId" element={<ChatInterface theme={theme} />} />
-            <Route path="/v/:roomUrl/:channelId/:threadId" element={<ChatInterface theme={theme} />} />
+            <Route
+              path="/v/:roomUrl/:channelId/:threadId"
+              element={<ChatInterface theme={theme} />}
+            />
             {/* Keep create thread route but update it to match new URL pattern */}
-            <Route path="/v/:roomUrl/:channelId/create-thread" element={<CreateThread theme={theme} />} />
+            <Route
+              path="/v/:roomUrl/:channelId/create-thread"
+              element={<CreateThread theme={theme} />}
+            />
             <Route path="/friends" element={<FriendsPage theme={theme} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
@@ -61,12 +73,12 @@ function App() {
 src/
   ├── hooks/
   |   ├─ useFetch.js
+  |   ├─ useFriendsData.js
   |   └─ useResponsive.js
   ├── components/
   |   ├─ chat/
   |   |  ├─ ChatInterface.js
   |   |  ├─ ContextMenu.js
-  |   |  ├─ RoomSidebar.js
   |   |  ├─ ThreadList.js
   |   |  ├─ Thread.js
   |   |  └─ ChannelSidebar.js
@@ -78,10 +90,19 @@ src/
   |   |  └─ SettingsForm.js
   |   ├─ friend-list/
   |   |  ├─ AddFriend.js
+  |   |  ├─ CategoryContextMenu.js
+  |   |  ├─ CreateFriendCategory.js
+  |   |  ├─ DirectMessage.js
   |   |  ├─ FriendRequests.js
   |   |  ├─ FriendSidebar.js
+  |   |  ├─ FriendsList.js
+  |   |  ├─ FriendsPage.js
+  |   |  ├─ FriendsView.js
+  |   |  ├─ friendsHandlers.js
   |   |  ├─ Layout.js
   |   |  └─ index.js
+  |   ├─ navigation/
+  |   |  └─ MainNavigation.js
   |   ├─ CreateChannel.js
   |   ├─ CreateThread.js
   |   ├─ CreateCategory.js

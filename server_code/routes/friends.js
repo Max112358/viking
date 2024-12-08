@@ -8,6 +8,9 @@ const {
   respondToFriendRequest,
   createFriendCategory,
   getFriendCategories,
+  addFriendToCategory,
+  deleteFriendCategory,
+  sendFriendRequest,
 } = require('../controllers/friendController');
 
 // Protect all routes with authentication
@@ -15,11 +18,14 @@ router.use(authenticateToken);
 
 // Friend routes
 router.get('/', getFriends);
+router.post('/request', sendFriendRequest);
 router.get('/requests', getFriendRequests);
 router.post('/requests/:requestId/:action', respondToFriendRequest);
 
 // Category routes
 router.post('/categories', createFriendCategory);
 router.get('/categories', getFriendCategories);
+router.post('/categories/:categoryId/members/:friendId', addFriendToCategory);
+router.delete('/categories/:categoryId', deleteFriendCategory);
 
 module.exports = router;
