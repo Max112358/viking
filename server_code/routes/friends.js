@@ -20,8 +20,16 @@ router.use(authenticateToken);
 router.get('/', getFriends);
 router.post('/request', sendFriendRequest);
 router.get('/requests', getFriendRequests);
-router.post('/requests/:requestId/:action', respondToFriendRequest);
-
+//router.post('/requests/:requestId/:action', respondToFriendRequest);
+// routes/friends.js
+router.post('/requests/:requestId/:action', (req, res, next) => {
+  console.log('Friend request route hit:', {
+    requestId: req.params.requestId,
+    action: req.params.action,
+    userId: req.user?.userId,
+  });
+  respondToFriendRequest(req, res);
+});
 // Category routes
 router.post('/categories', createFriendCategory);
 router.get('/categories', getFriendCategories);

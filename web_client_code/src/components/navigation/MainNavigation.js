@@ -3,7 +3,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../config';
 
-const MainNavigation = ({ rooms = [], selectedRoom = null, onRoomSelect, theme, activeSection = 'chat' }) => {
+const MainNavigation = ({
+  rooms = [],
+  selectedRoom = null,
+  onRoomSelect,
+  theme,
+  activeSection = 'chat',
+}) => {
   const navigate = useNavigate();
   const buttonThemeClasses = theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark';
   const selectedButtonClasses = theme === 'dark' ? 'btn-primary' : 'btn-primary';
@@ -56,21 +62,28 @@ const MainNavigation = ({ rooms = [], selectedRoom = null, onRoomSelect, theme, 
         <i className="bi bi-people-fill"></i>
       </button>
 
-      <div className={`w-100 mb-2 ${theme === 'dark' ? 'border-secondary' : 'border-dark'}`} style={{ borderBottom: '1px solid' }} />
+      <div
+        className={`w-100 mb-2 ${theme === 'dark' ? 'border-secondary' : 'border-dark'}`}
+        style={{ borderBottom: '1px solid' }}
+      />
 
       {/* Rooms Section */}
       <div
-        className="flex-grow-1 overflow-auto d-flex flex-column gap-2"
+        className="flex-grow-1 overflow-auto d-flex flex-column gap-2 rooms-scrollbar"
         style={{
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          '&::-webkit-scrollbar': {
-            width: 0,
-            height: 0,
-            display: 'none',
-          },
+          msOverflowStyle: 'none', // Hide scrollbar in IE/Edge
+          scrollbarWidth: 'none', // Hide scrollbar in Firefox
         }}
       >
+        <style>
+          {`
+            .rooms-scrollbar::-webkit-scrollbar {
+              width: 0;
+              height: 0;
+              display: none;
+            }
+          `}
+        </style>
         {rooms.map((room) => (
           <button
             key={room.room_id}
@@ -92,7 +105,10 @@ const MainNavigation = ({ rooms = [], selectedRoom = null, onRoomSelect, theme, 
 
       {/* Create Room Button */}
       <div>
-        <div className={`w-100 mt-2 ${theme === 'dark' ? 'border-secondary' : 'border-dark'}`} style={{ borderTop: '1px solid' }} />
+        <div
+          className={`w-100 mt-2 ${theme === 'dark' ? 'border-secondary' : 'border-dark'}`}
+          style={{ borderTop: '1px solid' }}
+        />
         <button
           onClick={() => navigate('/create-room')}
           className="btn btn-success rounded-circle d-flex align-items-center justify-content-center mt-2"

@@ -36,7 +36,10 @@ exports.createRoom = async (req, res) => {
     // Check if URL is taken one final time before creating room
     const result = await db.transaction(async (client) => {
       // Check URL availability
-      const urlCheck = await client.query('SELECT EXISTS(SELECT 1 FROM rooms WHERE url_name = $1)', [formattedUrlName]);
+      const urlCheck = await client.query(
+        'SELECT EXISTS(SELECT 1 FROM rooms WHERE url_name = $1)',
+        [formattedUrlName]
+      );
 
       if (urlCheck.rows[0].exists) {
         throw new Error('URL name is no longer available');
@@ -95,7 +98,10 @@ exports.createRoom = async (req, res) => {
       );
 
       // Make creator an admin
-      await client.query('INSERT INTO room_members (room_id, user_id, is_admin) VALUES ($1, $2, $3)', [roomId, userId, true]);
+      await client.query(
+        'INSERT INTO room_members (room_id, user_id, is_admin) VALUES ($1, $2, $3)',
+        [roomId, userId, true]
+      );
 
       return { roomId, urlName: formattedUrlName };
     });
@@ -149,7 +155,9 @@ exports.checkRoomUrlAvailability = async (req, res) => {
     }
 
     // Check if URL exists
-    const result = await db.query('SELECT EXISTS(SELECT 1 FROM rooms WHERE url_name = $1)', [formattedUrlName]);
+    const result = await db.query('SELECT EXISTS(SELECT 1 FROM rooms WHERE url_name = $1)', [
+      formattedUrlName,
+    ]);
 
     res.json({
       available: !result.rows[0].exists,
@@ -240,7 +248,10 @@ exports.joinRoom = async (req, res) => {
   const userId = req.user.userId; // Also fixed here
 
   try {
-    const existingMember = await db.query('SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+    const existingMember = await db.query(
+      'SELECT * FROM room_members WHERE room_id = $1 AND user_id = $2',
+      [roomId, userId]
+    );
 
     if (existingMember.rows.length > 0) {
       return res.status(400).json({ message: 'Already a member of this room' });
@@ -261,9 +272,15 @@ exports.leaveRoom = async (req, res) => {
 
   try {
     await db.transaction(async (client) => {
-      await client.query('DELETE FROM room_members WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+      await client.query('DELETE FROM room_members WHERE room_id = $1 AND user_id = $2', [
+        roomId,
+        userId,
+      ]);
 
-      const remainingMembers = await client.query('SELECT COUNT(*) FROM room_members WHERE room_id = $1', [roomId]);
+      const remainingMembers = await client.query(
+        'SELECT COUNT(*) FROM room_members WHERE room_id = $1',
+        [roomId]
+      );
 
       if (parseInt(remainingMembers.rows[0].count) === 0) {
         await destroyRoom(client, roomId);
@@ -283,10 +300,10 @@ exports.deleteRoom = async (req, res) => {
 
   try {
     await db.transaction(async (client) => {
-      const isAdmin = await client.query('SELECT is_admin FROM room_members WHERE room_id = $1 AND user_id = $2 AND is_admin = true', [
-        roomId,
-        userId,
-      ]);
+      const isAdmin = await client.query(
+        'SELECT is_admin FROM room_members WHERE room_id = $1 AND user_id = $2 AND is_admin = true',
+        [roomId, userId]
+      );
 
       if (isAdmin.rows.length === 0) {
         throw new Error('Not authorized to delete room');

@@ -6,11 +6,10 @@ const DirectMessage = ({ friend, theme }) => {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [room, setRoom] = useState(null);
-  const [channel, setChannel] = useState(null);
   const [thread, setThread] = useState(null);
   const scrollContainerRef = useRef(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isSending, setIsSending] = useState(false);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -19,113 +18,105 @@ const DirectMessage = ({ friend, theme }) => {
     setShouldAutoScroll(isAtBottom);
   };
 
-  // Fetch or create DM room
+  // Initialize DM room and fetch messages
   useEffect(() => {
-    const initializeDMRoom = async () => {
+    const initializeDM = async () => {
       try {
         const myUserId = localStorage.getItem('userId');
         const roomUrl = `dm-${Math.min(myUserId, friend.id)}-${Math.max(myUserId, friend.id)}`;
 
+        // Get the room
         const roomResponse = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`,
           },
         });
 
-        if (roomResponse.ok) {
-          const roomData = await roomResponse.json();
-          setRoom(roomData);
-
-          const channelsResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          });
-
-          if (channelsResponse.ok) {
-            const channelsData = await channelsResponse.json();
-            const defaultChannel = channelsData.categories[0]?.channels?.find(
-              (ch) => ch.name === 'messages'
-            );
-
-            if (defaultChannel) {
-              setChannel(defaultChannel);
-
-              const threadsResponse = await fetch(`${API_BASE_URL}/threads/${defaultChannel.id}`, {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-                },
-              });
-
-              if (threadsResponse.ok) {
-                const threadsData = await threadsResponse.json();
-                let mainThread = threadsData.threads[0];
-
-                // If no thread exists, create one
-                if (!mainThread) {
-                  const createThreadResponse = await fetch(
-                    `${API_BASE_URL}/threads/${defaultChannel.id}`,
-                    {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-                      },
-                      body: JSON.stringify({
-                        subject: 'Direct Messages',
-                        content: 'Chat started',
-                        isAnonymous: false,
-                      }),
-                    }
-                  );
-
-                  if (createThreadResponse.ok) {
-                    const newThreadData = await createThreadResponse.json();
-                    mainThread = { url_id: newThreadData.urlId };
-                  }
-                }
-
-                if (mainThread) {
-                  setThread(mainThread);
-                  // Fetch messages for this thread
-                  const messagesResponse = await fetch(
-                    `${API_BASE_URL}/threads/${mainThread.url_id}/posts`,
-                    {
-                      headers: {
-                        Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-                      },
-                    }
-                  );
-
-                  if (messagesResponse.ok) {
-                    const messagesData = await messagesResponse.json();
-                    setMessages(messagesData.posts || []);
-                  }
-                }
-              }
-            }
-          }
+        if (!roomResponse.ok) {
+          throw new Error('Failed to fetch room');
         }
-        setIsLoading(false);
+
+        const roomData = await roomResponse.json();
+
+        // Get channels
+        const channelsResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (!channelsResponse.ok) {
+          throw new Error('Failed to fetch channels');
+        }
+
+        const channelsData = await channelsResponse.json();
+        const defaultChannel = channelsData.categories[0]?.channels?.[0];
+
+        if (!defaultChannel) {
+          throw new Error('No message channel found');
+        }
+
+        // Get threads (we know there will be one)
+        const threadsResponse = await fetch(`${API_BASE_URL}/threads/${defaultChannel.id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (!threadsResponse.ok) {
+          throw new Error('Failed to fetch thread');
+        }
+
+        const threadsData = await threadsResponse.json();
+        const mainThread = threadsData.threads[0];
+
+        if (!mainThread) {
+          throw new Error('No message thread found');
+        }
+
+        setThread(mainThread);
+        await fetchMessages(mainThread.url_id);
       } catch (err) {
-        console.error('Error initializing DM room:', err);
+        console.error('Error initializing DM:', err);
         setError('Failed to load messages');
+      } finally {
         setIsLoading(false);
       }
     };
 
     if (friend?.id) {
-      initializeDMRoom();
+      initializeDM();
     }
   }, [friend?.id]);
+
+  const fetchMessages = async (threadUrlId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/threads/${threadUrlId}/posts`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+
+      const data = await response.json();
+      setMessages(data.posts || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      setError('Failed to load messages');
+    }
+  };
 
   const handleSubmit = async (e) => {
     if (e) {
       e.preventDefault();
     }
 
-    if (!newMessage.trim() || !thread?.url_id) return;
+    if (!newMessage.trim() || !thread?.url_id || isSending) return;
 
+    setIsSending(true);
     try {
       const response = await fetch(`${API_BASE_URL}/threads/${thread.url_id}/posts`, {
         method: 'POST',
@@ -136,23 +127,18 @@ const DirectMessage = ({ friend, theme }) => {
         body: JSON.stringify({ content: newMessage }),
       });
 
-      if (!response.ok) throw new Error('Failed to send message');
-
-      const messagesResponse = await fetch(`${API_BASE_URL}/threads/${thread.url_id}/posts`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
-      });
-
-      if (messagesResponse.ok) {
-        const data = await messagesResponse.json();
-        setMessages(data.posts || []);
-        setNewMessage('');
-        setShouldAutoScroll(true);
+      if (!response.ok) {
+        throw new Error('Failed to send message');
       }
+
+      await fetchMessages(thread.url_id);
+      setNewMessage('');
+      setShouldAutoScroll(true);
     } catch (err) {
+      console.error('Error sending message:', err);
       setError('Error sending message');
-      console.error('Error:', err);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -241,9 +227,10 @@ const DirectMessage = ({ friend, theme }) => {
               placeholder="Write a message... (Press Enter to send, Shift+Enter for new line)"
               rows="2"
               style={{ resize: 'none' }}
+              disabled={isSending}
             />
-            <button type="submit" className="btn btn-primary">
-              Send
+            <button type="submit" className="btn btn-primary" disabled={isSending}>
+              {isSending ? 'Sending...' : 'Send'}
             </button>
           </div>
         </form>
