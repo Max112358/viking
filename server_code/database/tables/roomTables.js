@@ -3,26 +3,27 @@ module.exports = async (client) => {
   try {
     // Create rooms table
     await client.query(`
-        CREATE TABLE IF NOT EXISTS rooms (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          url_name VARCHAR(50) UNIQUE NOT NULL,
-          description TEXT,
-          thumbnail_url VARCHAR(255),
-          is_public BOOLEAN DEFAULT FALSE,
-          thread_limit INTEGER DEFAULT 100,
-          allow_anonymous BOOLEAN DEFAULT TRUE,
-          allow_user_threads BOOLEAN DEFAULT TRUE,
-          max_file_size INTEGER DEFAULT 5242880,
-          max_files_per_post INTEGER DEFAULT 9,
-          anonymous_unique_per_thread BOOLEAN DEFAULT FALSE,
-          show_country_flags BOOLEAN DEFAULT FALSE,
-          is_nsfw BOOLEAN DEFAULT FALSE,
-          allow_accountless BOOLEAN DEFAULT FALSE,     
-          posts_per_thread INTEGER DEFAULT 1000,      
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+      CREATE TABLE IF NOT EXISTS rooms (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        url_name VARCHAR(50) UNIQUE NOT NULL,
+        description TEXT,
+        thumbnail_url VARCHAR(255),
+        is_public BOOLEAN DEFAULT FALSE,
+        is_hidden BOOLEAN DEFAULT FALSE,      /* New field added here */
+        thread_limit INTEGER DEFAULT 100,
+        allow_anonymous BOOLEAN DEFAULT TRUE,
+        allow_user_threads BOOLEAN DEFAULT TRUE,
+        max_file_size INTEGER DEFAULT 5242880,
+        max_files_per_post INTEGER DEFAULT 9,
+        anonymous_unique_per_thread BOOLEAN DEFAULT FALSE,
+        show_country_flags BOOLEAN DEFAULT FALSE,
+        is_nsfw BOOLEAN DEFAULT FALSE,
+        allow_accountless BOOLEAN DEFAULT FALSE,     
+        posts_per_thread INTEGER DEFAULT 1000,      
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+  `);
     console.log('✓ Rooms table created');
 
     // Create room_members table

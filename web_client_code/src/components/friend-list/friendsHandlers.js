@@ -1,10 +1,16 @@
 // components/friend-list/friendsHandlers.js
 import { API_BASE_URL } from '../../config';
 
-export const createFriendHandlers = (dependencies) => {
-  const { setSelectedFriend, setActiveView, fetchThreads, fetchRoomAndChannel, navigate, setContextMenu, fetchCategories, fetchFriends } =
-    dependencies;
-
+export const createFriendHandlers = ({
+  setSelectedFriend,
+  setActiveView,
+  fetchThreads,
+  fetchRoomAndChannel,
+  navigate,
+  setContextMenu,
+  refreshAllData,
+  setSelectedThread,
+}) => {
   const handleFriendSelect = async (friend) => {
     setSelectedFriend(friend);
     setActiveView(null);
@@ -19,7 +25,7 @@ export const createFriendHandlers = (dependencies) => {
   };
 
   const handleThreadSelect = (thread) => {
-    if (thread.url_id) {
+    if (thread?.url_id) {
       setSelectedThread(thread);
     }
   };
@@ -58,8 +64,7 @@ export const createFriendHandlers = (dependencies) => {
       });
 
       if (response.ok) {
-        fetchCategories();
-        fetchFriends();
+        await refreshAllData();
       }
     } catch (error) {
       console.error('Error deleting category:', error);
@@ -84,7 +89,7 @@ export const createFriendHandlers = (dependencies) => {
       }
 
       setActiveView(null);
-      fetchFriends();
+      await refreshAllData();
     } catch (error) {
       console.error('Error sending friend request:', error);
       throw error;
@@ -106,8 +111,17 @@ export const createFriendHandlers = (dependencies) => {
         throw new Error('Failed to create category');
       }
 
+      // Mirror the initial data fetch pattern
+      const fetchInitialData = async () => {
+        try {
+          await refreshAllData();
+        } catch (error) {
+          console.error('Error refreshing data:', error);
+        }
+      };
+
+      await fetchInitialData();
       setActiveView(null);
-      fetchCategories();
     } catch (error) {
       console.error('Error creating category:', error);
       throw error;
@@ -127,7 +141,7 @@ export const createFriendHandlers = (dependencies) => {
         throw new Error(`Failed to ${action} friend request`);
       }
 
-      fetchFriends();
+      await refreshAllData();
     } catch (error) {
       console.error(`Error ${action}ing friend request:`, error);
       throw error;

@@ -4,8 +4,6 @@ import MainNavigation from '../navigation/MainNavigation';
 import CreateFriendCategory from './CreateFriendCategory';
 import AddFriend from './AddFriend';
 import FriendRequests from './FriendRequests';
-import Thread from '../chat/Thread';
-import ThreadList from '../chat/ThreadList';
 import CategoryContextMenu from './CategoryContextMenu';
 import FriendsList from './FriendsList';
 import DirectMessage from './DirectMessage';
@@ -13,17 +11,16 @@ import DirectMessage from './DirectMessage';
 const FriendsView = ({
   theme,
   rooms,
-  friends, // Added friends prop
-  categories, // Added categories prop
+  friends,
+  categories,
   selectedRoom,
   handleRoomSelect,
   activeView,
+  setActiveView,
   selectedFriend,
-  selectedChannel,
-  selectedThread,
-  threads,
   contextMenu,
   handlers,
+  refreshAllData,
 }) => {
   const {
     handleThreadSelect,
@@ -66,11 +63,13 @@ const FriendsView = ({
             <div className="col-md-3 border-end h-100 p-0">
               <FriendsList
                 theme={theme}
-                friends={friends} // Pass friends prop
-                categories={categories} // Pass categories prop
+                friends={friends}
+                categories={categories}
                 handlers={handlers}
                 activeView={activeView}
+                setActiveView={setActiveView}
                 selectedFriend={selectedFriend}
+                refreshAllData={refreshAllData}
               />
             </div>
 
@@ -79,26 +78,27 @@ const FriendsView = ({
               {activeView === 'create-category' ? (
                 <CreateFriendCategory
                   theme={theme}
-                  onClose={() => handlers.setActiveView(null)}
-                  onCreateCategory={handlers.handleCreateCategory}
+                  onClose={() => setActiveView(null)}
+                  refreshAllData={refreshAllData}
                 />
               ) : activeView === 'add-friend' ? (
                 <AddFriend
                   theme={theme}
-                  onClose={() => handlers.setActiveView(null)}
-                  onAddFriend={handlers.handleAddFriend}
+                  onClose={() => setActiveView(null)}
+                  refreshAllData={refreshAllData}
                 />
               ) : activeView === 'requests' ? (
                 <FriendRequests
                   theme={theme}
-                  onClose={() => handlers.setActiveView(null)}
-                  onRespond={handlers.handleRespondToFriendRequest}
+                  onClose={() => setActiveView(null)}
+                  refreshAllData={refreshAllData}
                 />
               ) : selectedFriend ? (
                 <DirectMessage
                   friend={selectedFriend}
                   theme={theme}
                   onClose={() => handlers.setSelectedFriend(null)}
+                  refreshAllData={refreshAllData}
                 />
               ) : (
                 <div className="h-100 d-flex align-items-center justify-content-center">

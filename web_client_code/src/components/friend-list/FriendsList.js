@@ -1,7 +1,16 @@
 // components/friend-list/FriendsList.js
 import React, { useState } from 'react';
 
-const FriendsList = ({ theme, friends, categories, handlers, activeView, selectedFriend }) => {
+const FriendsList = ({
+  theme,
+  friends,
+  categories,
+  handlers,
+  activeView,
+  setActiveView,
+  selectedFriend,
+  refreshAllData,
+}) => {
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
   const toggleCategory = (categoryId) => {
@@ -15,7 +24,9 @@ const FriendsList = ({ theme, friends, categories, handlers, activeView, selecte
     <div
       key={friend.id}
       onClick={() => handlers.handleFriendSelect(friend)}
-      className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''} ${selectedFriend?.id === friend.id ? 'border-primary' : ''}`}
+      className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''} ${
+        selectedFriend?.id === friend.id ? 'border-primary' : ''
+      }`}
       style={{ cursor: 'pointer' }}
     >
       <div className="card-body py-2">
@@ -38,21 +49,34 @@ const FriendsList = ({ theme, friends, categories, handlers, activeView, selecte
   );
 
   const renderCategory = (category) => (
-    <div key={category.id} className="mb-3" onContextMenu={(e) => handlers.handleContextMenu(e, category)}>
+    <div
+      key={category.id}
+      className="mb-3"
+      onContextMenu={(e) => handlers.handleContextMenu(e, category)}
+    >
       <div
         className="d-flex align-items-center mb-2 user-select-none"
         style={{ cursor: 'pointer' }}
         onClick={() => toggleCategory(category.id)}
       >
-        <i className={`bi bi-chevron-${collapsedCategories[category.id] ? 'right' : 'down'} me-2`}></i>
+        <i
+          className={`bi bi-chevron-${collapsedCategories[category.id] ? 'right' : 'down'} me-2`}
+        ></i>
         <span className="text-uppercase small fw-bold">{category.name}</span>
         <span className="ms-2 small text-muted">
-          ({friends.filter((friend) => friend.categories?.some((cat) => cat.id === category.id)).length})
+          (
+          {
+            friends.filter((friend) => friend.categories?.some((cat) => cat.id === category.id))
+              .length
+          }
+          )
         </span>
       </div>
       {!collapsedCategories[category.id] && (
         <div className="d-flex flex-column gap-2 ms-3">
-          {friends.filter((friend) => friend.categories?.some((cat) => cat.id === category.id)).map(renderFriendCard)}
+          {friends
+            .filter((friend) => friend.categories?.some((cat) => cat.id === category.id))
+            .map(renderFriendCard)}
         </div>
       )}
     </div>
@@ -69,22 +93,28 @@ const FriendsList = ({ theme, friends, categories, handlers, activeView, selecte
           </div>
           <div>
             <button
-              onClick={() => handlers.setActiveView('create-category')}
-              className={`btn btn-sm me-2 ${activeView === 'create-category' ? 'btn-warning' : 'btn-outline-warning'}`}
+              onClick={() => setActiveView('create-category')}
+              className={`btn btn-sm me-2 ${
+                activeView === 'create-category' ? 'btn-warning' : 'btn-outline-warning'
+              }`}
               title="Create Category"
             >
               <i className="bi bi-folder-plus"></i>
             </button>
             <button
-              onClick={() => handlers.setActiveView('add-friend')}
-              className={`btn btn-sm me-2 ${activeView === 'add-friend' ? 'btn-success' : 'btn-outline-success'}`}
+              onClick={() => setActiveView('add-friend')}
+              className={`btn btn-sm me-2 ${
+                activeView === 'add-friend' ? 'btn-success' : 'btn-outline-success'
+              }`}
               title="Add Friend"
             >
               <i className="bi bi-person-plus"></i>
             </button>
             <button
-              onClick={() => handlers.setActiveView('requests')}
-              className={`btn btn-sm ${activeView === 'requests' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setActiveView('requests')}
+              className={`btn btn-sm ${
+                activeView === 'requests' ? 'btn-primary' : 'btn-outline-primary'
+              }`}
               title="Friend Requests"
             >
               <i className="bi bi-person-lines-fill"></i>
@@ -105,9 +135,15 @@ const FriendsList = ({ theme, friends, categories, handlers, activeView, selecte
             style={{ cursor: 'pointer' }}
             onClick={() => toggleCategory('uncategorized')}
           >
-            <i className={`bi bi-chevron-${collapsedCategories.uncategorized ? 'right' : 'down'} me-2`}></i>
+            <i
+              className={`bi bi-chevron-${
+                collapsedCategories.uncategorized ? 'right' : 'down'
+              } me-2`}
+            ></i>
             <span className="text-uppercase small fw-bold">Uncategorized</span>
-            <span className="ms-2 small text-muted">({friends.filter((friend) => !friend.categories?.length).length})</span>
+            <span className="ms-2 small text-muted">
+              ({friends.filter((friend) => !friend.categories?.length).length})
+            </span>
           </div>
           {!collapsedCategories.uncategorized && (
             <div className="d-flex flex-column gap-2 ms-3">

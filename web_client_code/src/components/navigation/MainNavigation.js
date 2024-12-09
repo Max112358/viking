@@ -1,4 +1,3 @@
-// components/navigation/MainNavigation.js
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../config';
@@ -17,7 +16,10 @@ const MainNavigation = ({
   // Smaller base size and proper container width
   const BUTTON_SIZE = 38; // px
   const PADDING = 8; // px
-  const CONTAINER_WIDTH = BUTTON_SIZE + PADDING * 2; // Total width including padding
+  const CONTAINER_WIDTH = BUTTON_SIZE + PADDING * 2;
+
+  // Filter out hidden rooms
+  const visibleRooms = rooms.filter((room) => !room.is_hidden);
 
   const getRoomDisplay = (room) => {
     if (room.thumbnail_url) {
@@ -46,7 +48,6 @@ const MainNavigation = ({
         padding: `${PADDING}px`,
       }}
     >
-      {/* Friends Button */}
       <button
         className={`btn rounded-circle d-flex align-items-center justify-content-center mb-2 ${
           activeSection === 'friends' ? selectedButtonClasses : buttonThemeClasses
@@ -54,7 +55,7 @@ const MainNavigation = ({
         style={{
           width: `${BUTTON_SIZE}px`,
           height: `${BUTTON_SIZE}px`,
-          minWidth: `${BUTTON_SIZE}px`, // Prevent button from expanding
+          minWidth: `${BUTTON_SIZE}px`,
         }}
         onClick={() => navigate('/friends')}
         title="Friends List"
@@ -67,12 +68,11 @@ const MainNavigation = ({
         style={{ borderBottom: '1px solid' }}
       />
 
-      {/* Rooms Section */}
       <div
         className="flex-grow-1 overflow-auto d-flex flex-column gap-2 rooms-scrollbar"
         style={{
-          msOverflowStyle: 'none', // Hide scrollbar in IE/Edge
-          scrollbarWidth: 'none', // Hide scrollbar in Firefox
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
         }}
       >
         <style>
@@ -84,7 +84,7 @@ const MainNavigation = ({
             }
           `}
         </style>
-        {rooms.map((room) => (
+        {visibleRooms.map((room) => (
           <button
             key={room.room_id}
             onClick={() => onRoomSelect(room)}
@@ -94,7 +94,7 @@ const MainNavigation = ({
             style={{
               width: `${BUTTON_SIZE}px`,
               height: `${BUTTON_SIZE}px`,
-              minWidth: `${BUTTON_SIZE}px`, // Prevent button from expanding
+              minWidth: `${BUTTON_SIZE}px`,
             }}
             title={room.name}
           >
@@ -103,7 +103,6 @@ const MainNavigation = ({
         ))}
       </div>
 
-      {/* Create Room Button */}
       <div>
         <div
           className={`w-100 mt-2 ${theme === 'dark' ? 'border-secondary' : 'border-dark'}`}
@@ -115,7 +114,7 @@ const MainNavigation = ({
           style={{
             width: `${BUTTON_SIZE}px`,
             height: `${BUTTON_SIZE}px`,
-            minWidth: `${BUTTON_SIZE}px`, // Prevent button from expanding
+            minWidth: `${BUTTON_SIZE}px`,
           }}
           title="Create New Room"
         >

@@ -53,6 +53,7 @@ exports.createRoom = async (req, res) => {
           description, 
           thumbnail_url, 
           is_public,
+          is_hidden,
           allow_anonymous,
           allow_user_threads,
           thread_limit,
@@ -61,13 +62,14 @@ exports.createRoom = async (req, res) => {
           is_nsfw,
           allow_accountless,
           posts_per_thread
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
         [
           name,
           formattedUrlName,
           description,
           thumbnailUrl,
           isPublic === 'true',
+          formattedUrlName.startsWith('dm-'), // Automatically hide DM rooms
           allowAnonymous === 'true',
           allowUserThreads === 'true',
           threadLimit === 'null' ? null : parseInt(threadLimit),
@@ -81,7 +83,7 @@ exports.createRoom = async (req, res) => {
 
       const roomId = roomResult.rows[0].id;
 
-      // Create default TEXT CHANNELS category
+      // Create default category
       const categoryResult = await client.query(
         `INSERT INTO channel_categories (room_id, name, position) 
          VALUES ($1, $2, 0) RETURNING id`,
@@ -90,7 +92,7 @@ exports.createRoom = async (req, res) => {
 
       const categoryId = categoryResult.rows[0].id;
 
-      // Create default general channel within the TEXT CHANNELS category
+      // Create default general channel
       await client.query(
         `INSERT INTO channels (room_id, category_id, name, description, is_default) 
          VALUES ($1, $2, $3, $4, true)`,
@@ -231,6 +233,7 @@ exports.getUserRooms = async (req, res) => {
       FROM rooms r
       INNER JOIN room_members rm ON r.id = rm.room_id
       WHERE rm.user_id = $1
+      AND NOT r.url_name LIKE 'dm-%'  -- Explicitly exclude DM rooms
       ORDER BY rm.joined_at DESC
     `,
       [userId]

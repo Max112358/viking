@@ -1,169 +1,99 @@
 // hooks/useFriendsData.js
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
 
+// Data fetching hook
 export const useFriendsData = () => {
   const [friends, setFriends] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchRooms = useCallback(async () => {
+  // Unified data refresh function
+  const refreshAllData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/rooms`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const [roomsResponse, friendsResponse, categoriesResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/rooms`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        }),
+        fetch(`${API_BASE_URL}/friends`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        }),
+        fetch(`${API_BASE_URL}/friends/categories`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        }),
+      ]);
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          navigate('/login');
-          return;
-        }
-        throw new Error('Failed to fetch rooms');
+      // Check if any requests failed
+      if (!roomsResponse.ok || !friendsResponse.ok || !categoriesResponse.ok) {
+        throw new Error('One or more requests failed');
       }
 
-      const data = await response.json();
-      setRooms(data.rooms || []);
+      // Parse all responses in parallel
+      const [roomsData, friendsData, categoriesData] = await Promise.all([
+        roomsResponse.json(),
+        friendsResponse.json(),
+        categoriesResponse.json(),
+      ]);
+
+      // Update all state at once
+      setRooms(roomsData.rooms || []);
+      setFriends(friendsData.friends || []);
+      setCategories(categoriesData.categories || []);
+
+      return true; // Indicate successful refresh
     } catch (error) {
-      console.error('Error fetching rooms:', error);
+      console.error('Error refreshing data:', error);
+      setError('Failed to refresh data');
+      return false; // Indicate failed refresh
+    } finally {
+      setIsLoading(false);
     }
-  }, [navigate]);
+  }, []);
+
+  // Individual fetch methods - now using the unified refresh
+  const fetchRooms = useCallback(async () => {
+    return refreshAllData();
+  }, [refreshAllData]);
 
   const fetchFriends = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/friends`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          navigate('/login');
-          return;
-        }
-        throw new Error('Failed to fetch friends');
-      }
-
-      const data = await response.json();
-      setFriends(data.friends || []);
-    } catch (error) {
-      console.error('Error fetching friends:', error);
-      setError('Failed to load friends');
-    }
-  }, [navigate]);
+    return refreshAllData();
+  }, [refreshAllData]);
 
   const fetchCategories = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/friends/categories`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    return refreshAllData();
+  }, [refreshAllData]);
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          navigate('/login');
-          return;
-        }
-        throw new Error('Failed to fetch categories');
-      }
-
-      const data = await response.json();
-      setCategories(data.categories || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setError('Failed to load categories');
-    }
-  }, [navigate]);
+  // Initial data fetch
+  useEffect(() => {
+    refreshAllData();
+  }, [refreshAllData]);
 
   return {
     friends,
     rooms,
     categories,
     error,
+    isLoading,
+    refreshAllData,
+    // Keep individual fetch methods for backward compatibility
     fetchRooms,
     fetchFriends,
     fetchCategories,
   };
 };
 
-export const useChatData = () => {
-  const [threads, setThreads] = useState([]);
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [selectedChannel, setSelectedChannel] = useState(null);
-  const [selectedThread, setSelectedThread] = useState(null);
-  const navigate = useNavigate();
-
-  const fetchThreads = async (channelId) => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/threads/${channelId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setThreads(data.threads || []);
-      }
-    } catch (error) {
-      console.error('Error fetching threads:', error);
-    }
-  };
-
-  const fetchRoomAndChannel = async (roomUrl) => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const roomResponse = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (roomResponse.ok) {
-        const roomData = await roomResponse.json();
-        setSelectedRoom(roomData);
-
-        const channelsResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (channelsResponse.ok) {
-          const channelsData = await channelsResponse.json();
-          const defaultChannel = channelsData.categories[0]?.channels[0];
-          if (defaultChannel) {
-            setSelectedChannel(defaultChannel);
-            fetchThreads(defaultChannel.id);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching room data:', error);
-    }
-  };
-
-  return {
-    threads,
-    selectedRoom,
-    selectedChannel,
-    selectedThread,
-    setSelectedThread,
-    fetchThreads,
-    fetchRoomAndChannel,
-  };
-};
-
+// Context menu hook remains unchanged
 export const useContextMenu = () => {
   const [contextMenu, setContextMenu] = useState(null);
 
@@ -176,13 +106,64 @@ export const useContextMenu = () => {
     });
   };
 
-  const closeContextMenu = () => {
-    setContextMenu(null);
+  const closeContextMenu = () => setContextMenu(null);
+
+  return { contextMenu, handleContextMenu, closeContextMenu };
+};
+
+// Chat data hook remains unchanged
+export const useChatData = () => {
+  const [threads, setThreads] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedChannel, setSelectedChannel] = useState(null);
+  const [selectedThread, setSelectedThread] = useState(null);
+
+  const fetchThreads = async (channelId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/threads/${channelId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch threads');
+      const data = await response.json();
+      setThreads(data.threads || []);
+    } catch (error) {
+      console.error('Error fetching threads:', error);
+    }
+  };
+
+  const fetchRoomAndChannel = async (roomUrl) => {
+    try {
+      const roomResponse = await fetch(`${API_BASE_URL}/rooms/by-url/${roomUrl}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+      if (!roomResponse.ok) throw new Error('Failed to fetch room');
+      const roomData = await roomResponse.json();
+      setSelectedRoom(roomData);
+
+      const channelsResponse = await fetch(`${API_BASE_URL}/channels/${roomData.room_id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+      if (!channelsResponse.ok) throw new Error('Failed to fetch channels');
+      const channelsData = await channelsResponse.json();
+      setSelectedChannel(channelsData.categories[0]?.channels[0] || null);
+    } catch (error) {
+      console.error('Error fetching room and channel:', error);
+    }
   };
 
   return {
-    contextMenu,
-    handleContextMenu,
-    closeContextMenu,
+    threads,
+    selectedRoom,
+    selectedChannel,
+    selectedThread,
+    setSelectedThread,
+    fetchThreads,
+    fetchRoomAndChannel,
   };
 };

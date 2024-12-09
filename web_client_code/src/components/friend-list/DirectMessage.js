@@ -1,7 +1,8 @@
+// components/friend-list/DirectMessage.js
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../../config';
 
-const DirectMessage = ({ friend, theme }) => {
+const DirectMessage = ({ friend, theme, onClose, refreshAllData }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -132,6 +133,7 @@ const DirectMessage = ({ friend, theme }) => {
       }
 
       await fetchMessages(thread.url_id);
+      await refreshAllData(); // Refresh all data after sending a message
       setNewMessage('');
       setShouldAutoScroll(true);
     } catch (err) {
@@ -178,6 +180,11 @@ const DirectMessage = ({ friend, theme }) => {
           </div>
           <h5 className="mb-0">{friend.email}</h5>
         </div>
+        <button
+          type="button"
+          className={`btn-close ${theme === 'dark' ? 'btn-close-white' : ''}`}
+          onClick={onClose}
+        />
       </div>
 
       <div

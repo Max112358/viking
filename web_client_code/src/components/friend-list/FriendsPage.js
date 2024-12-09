@@ -7,10 +7,11 @@ import FriendsView from './FriendsView';
 
 const FriendsPage = ({ theme }) => {
   const navigate = useNavigate();
+  const [activeView, setActiveView] = useState(null);
+  const [selectedFriend, setSelectedFriend] = useState(null);
 
-  // Custom hooks for data management
-  const { friends, rooms, categories, error, fetchRooms, fetchFriends, fetchCategories } =
-    useFriendsData();
+  // Update to use new unified refresh
+  const { friends, rooms, categories, error, refreshAllData } = useFriendsData();
 
   const {
     threads,
@@ -24,10 +25,6 @@ const FriendsPage = ({ theme }) => {
 
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu();
 
-  // Local state
-  const [selectedFriend, setSelectedFriend] = useState(null);
-  const [activeView, setActiveView] = useState(null);
-
   // Room selection handler
   const handleRoomSelect = (room) => {
     if (room?.url_name) {
@@ -35,22 +32,16 @@ const FriendsPage = ({ theme }) => {
     }
   };
 
-  // Create handlers
+  // Create handlers with refreshAllData and setActiveView
   const handlers = createFriendHandlers({
-    // State setters
     setSelectedFriend,
     setActiveView,
     setSelectedThread,
     setContextMenu: closeContextMenu,
-
-    // Navigation
     navigate,
-
-    // Data fetching
     fetchThreads,
     fetchRoomAndChannel,
-    fetchCategories,
-    fetchFriends,
+    refreshAllData,
   });
 
   // Initial data fetch
@@ -61,52 +52,29 @@ const FriendsPage = ({ theme }) => {
       return;
     }
 
-    const fetchInitialData = async () => {
-      try {
-        await Promise.all([fetchRooms(), fetchFriends(), fetchCategories()]);
-      } catch (error) {
-        console.error('Error fetching initial data:', error);
-      }
-    };
+    refreshAllData();
+  }, [navigate, refreshAllData]);
 
-    fetchInitialData();
-  }, [fetchRooms, fetchFriends, fetchCategories, navigate]);
-
-  // Handle errors
   if (error) {
     return <div className="alert alert-danger">{error}</div>;
   }
 
-  // Combine all props for the view
   const viewProps = {
-    // Theme
     theme,
-
-    // Data
     rooms,
     friends,
     categories,
     threads,
-
-    // Selection state
     selectedRoom,
     selectedFriend,
     selectedChannel,
     selectedThread,
     activeView,
-
-    // Context menu
+    setActiveView, // Add this
     contextMenu,
-
-    // Navigation handlers
-    handleRoomSelect, // Add this
-
-    // Other handlers
-    handlers: {
-      ...handlers,
-      handleContextMenu,
-      setActiveView,
-    },
+    handleRoomSelect,
+    handlers,
+    refreshAllData,
   };
 
   return <FriendsView {...viewProps} />;

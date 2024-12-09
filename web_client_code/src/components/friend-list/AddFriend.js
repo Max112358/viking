@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from '../../config';
 
-const AddFriend = ({ theme, onClose }) => {
+const AddFriend = ({ theme, onClose, refreshAllData }) => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,9 +19,9 @@ const AddFriend = ({ theme, onClose }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
@@ -29,6 +29,10 @@ const AddFriend = ({ theme, onClose }) => {
       if (response.ok) {
         setSuccess('Friend request sent!');
         setEmail('');
+        await refreshAllData();
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
         setError(data.message || 'Failed to send friend request');
       }
@@ -44,7 +48,11 @@ const AddFriend = ({ theme, onClose }) => {
       <div className="card-body">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="card-title mb-0">Add Friend</h5>
-          <button className="btn btn-close" onClick={onClose} />
+          <button
+            type="button"
+            className={`btn-close ${theme === 'dark' ? 'btn-close-white' : ''}`}
+            onClick={onClose}
+          />
         </div>
 
         {error && <div className="alert alert-danger py-2">{error}</div>}
@@ -59,15 +67,14 @@ const AddFriend = ({ theme, onClose }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isLoading}
             />
           </div>
-          <button 
-            type="submit" 
-            className="btn btn-primary w-100" 
-            disabled={isLoading}
-          >
-            {isLoading ? 'Sending...' : 'Send Friend Request'}
-          </button>
+          <div className="d-grid">
+            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+              {isLoading ? 'Sending...' : 'Send Friend Request'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

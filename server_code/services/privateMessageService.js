@@ -16,20 +16,20 @@ const generateDMRoomUrl = (userIds) => {
 exports.findOrCreateDMRoom = async (userId1, userId2) => {
   try {
     return await db.transaction(async (client) => {
-      // First try to find an existing DM room between these users using the deterministic URL
+      // First try to find an existing DM room between these users
       const expectedUrl = generateDMRoomUrl([userId1, userId2]);
 
       const existingRoom = await client.query(
         `SELECT r.* FROM rooms r
-         WHERE r.url_name = $1
-         AND EXISTS (
-           SELECT 1 FROM room_members rm1
-           WHERE rm1.room_id = r.id AND rm1.user_id = $2
-         )
-         AND EXISTS (
-           SELECT 1 FROM room_members rm2
-           WHERE rm2.room_id = r.id AND rm2.user_id = $3
-         )`,
+           WHERE r.url_name = $1
+           AND EXISTS (
+             SELECT 1 FROM room_members rm1
+             WHERE rm1.room_id = r.id AND rm1.user_id = $2
+           )
+           AND EXISTS (
+             SELECT 1 FROM room_members rm2
+             WHERE rm2.room_id = r.id AND rm2.user_id = $3
+           )`,
         [expectedUrl, userId1, userId2]
       );
 
@@ -40,16 +40,17 @@ exports.findOrCreateDMRoom = async (userId1, userId2) => {
       // If no room exists, create one
       const roomResult = await client.query(
         `INSERT INTO rooms (
-          name,
-          url_name,
-          description,
-          is_public,
-          allow_anonymous,
-          allow_user_threads,
-          thread_limit,
-          posts_per_thread
-        ) VALUES ($1, $2, $3, false, false, false, null, null)
-        RETURNING *`,
+            name,
+            url_name,
+            description,
+            is_public,
+            is_hidden,
+            allow_anonymous,
+            allow_user_threads,
+            thread_limit,
+            posts_per_thread
+          ) VALUES ($1, $2, $3, false, true, false, false, null, null)
+          RETURNING *`,
         [generateDMRoomName([userId1, userId2]), expectedUrl, 'Direct Messages']
       );
 
@@ -58,21 +59,21 @@ exports.findOrCreateDMRoom = async (userId1, userId2) => {
       // Create default category
       const categoryResult = await client.query(
         `INSERT INTO channel_categories (room_id, name, position)
-         VALUES ($1, 'MESSAGES', 0) RETURNING id`,
+           VALUES ($1, 'MESSAGES', 0) RETURNING id`,
         [roomId]
       );
 
       // Create default channel
       await client.query(
         `INSERT INTO channels (room_id, category_id, name, description, is_default)
-         VALUES ($1, $2, 'messages', 'Direct Messages', true)`,
+           VALUES ($1, $2, 'messages', 'Direct Messages', true)`,
         [roomId, categoryResult.rows[0].id]
       );
 
       // Add both users as room members
       await client.query(
         `INSERT INTO room_members (room_id, user_id, is_admin)
-         VALUES ($1, $2, true), ($1, $3, true)`,
+           VALUES ($1, $2, true), ($1, $3, true)`,
         [roomId, userId1, userId2]
       );
 
