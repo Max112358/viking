@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../../config';
 
-const DirectMessage = ({ friend, theme, onClose, refreshAllData }) => {
+const DirectMessage = ({ friend, theme, refreshAllData }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -133,7 +133,7 @@ const DirectMessage = ({ friend, theme, onClose, refreshAllData }) => {
       }
 
       await fetchMessages(thread.url_id);
-      await refreshAllData(); // Refresh all data after sending a message
+      await refreshAllData();
       setNewMessage('');
       setShouldAutoScroll(true);
     } catch (err) {
@@ -170,8 +170,8 @@ const DirectMessage = ({ friend, theme, onClose, refreshAllData }) => {
 
   return (
     <div className="h-100 d-flex flex-column">
-      <div className="p-3 border-bottom d-flex align-items-center">
-        <div className="d-flex align-items-center flex-grow-1">
+      <div className="p-3 border-bottom">
+        <div className="d-flex align-items-center">
           <div
             className="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2"
             style={{ width: '40px', height: '40px' }}
@@ -180,11 +180,6 @@ const DirectMessage = ({ friend, theme, onClose, refreshAllData }) => {
           </div>
           <h5 className="mb-0">{friend.email}</h5>
         </div>
-        <button
-          type="button"
-          className={`btn-close ${theme === 'dark' ? 'btn-close-white' : ''}`}
-          onClick={onClose}
-        />
       </div>
 
       <div
