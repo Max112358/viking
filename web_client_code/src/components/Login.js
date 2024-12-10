@@ -16,7 +16,7 @@ const Login = ({ theme }) => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,10 +44,15 @@ const Login = ({ theme }) => {
 
   return (
     <div
-      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}
+      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${
+        theme === 'dark' ? 'bg-dark text-light' : 'bg-light'
+      }`}
     >
       <div className="w-100" style={{ maxWidth: '500px' }}>
-        <form onSubmit={handleSubmit} className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
+        <form
+          onSubmit={handleSubmit}
+          className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}
+        >
           <div className="card-body p-2">
             <div className="text-center mb-3">
               <img
@@ -91,10 +96,18 @@ const Login = ({ theme }) => {
             </div>
 
             <div className="d-flex justify-content-between mt-2">
-              <button type="button" className="btn btn-link p-0" onClick={() => navigate('/register')}>
+              <button
+                type="button"
+                className="btn btn-link p-0"
+                onClick={() => navigate('/register')}
+              >
                 Register an account
               </button>
-              <button type="button" className="btn btn-link p-0" onClick={() => navigate('/forgot-password')}>
+              <button
+                type="button"
+                className="btn btn-link p-0"
+                onClick={() => navigate('/forgot-password')}
+              >
                 Forgot your password?
               </button>
             </div>

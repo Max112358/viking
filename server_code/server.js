@@ -1,10 +1,12 @@
 // part of backend
 // server.js
+// server.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
-const db = require('./database'); // Updated to use new database folder
+const db = require('./database');
 const multer = require('multer');
 const upload = multer();
 
@@ -15,22 +17,16 @@ const PORT = 3000;
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use('/uploads', express.static('public/uploads'));
 
-// Initialize database
-db.initializeDatabase();
-
-///*
-// Log all incoming requests, useful for debugging endpoints
+// Request logging middleware
 app.use((req, res, next) => {
   console.log(`Incoming request: ${req.method} ${req.url}`);
   console.log('Headers:', req.headers);
-  console.log('Body:', req.body); // Only for POST/PUT/PATCH requests
-  next(); // Pass to the next middleware or route handler
+  console.log('Body:', req.body);
+  next();
 });
-//*/
 
-//error handling middleware to catch Multer errors
+// Error handling middleware for Multer
 app.use((error, req, res, next) => {
   console.error('Error:', error);
   if (error instanceof multer.MulterError) {
@@ -39,14 +35,28 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
-// Routes - mount at root level to keep original paths
-app.use('/', require('./routes/auth'));
-app.use('/rooms', require('./routes/rooms'));
-app.use('/categories', require('./routes/categories'));
-app.use('/channels', require('./routes/channels'));
-app.use('/threads', require('./routes/threads'));
-app.use('/users', require('./routes/users'));
-app.use('/friends', require('./routes/friends'));
+// API Routes - define before static file serving
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/rooms', require('./routes/rooms'));
+app.use('/api/categories', require('./routes/categories'));
+app.use('/api/channels', require('./routes/channels'));
+app.use('/api/threads', require('./routes/threads'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/friends', require('./routes/friends'));
+
+// Serve uploaded files
+app.use('/uploads', express.static('public/uploads'));
+
+// Serve static files from React build directory
+app.use(express.static(path.join(__dirname, 'build')));
+
+// Handle React routing - this should come after API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
+// Initialize database
+db.initializeDatabase();
 
 // Start server
 app.listen(PORT, () => {
