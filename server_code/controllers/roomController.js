@@ -325,3 +325,110 @@ exports.deleteRoom = async (req, res) => {
     }
   }
 };
+
+exports.createRoomInvite = async (req, res) => {
+  const { roomId } = req.params;
+  const userId = req.user.userId;
+
+  try {
+    await db.transaction(async (client) => {
+      // Check if user is room member
+      const memberCheck = await client.query(
+        'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
+        [roomId, userId]
+      );
+
+      if (memberCheck.rows.length === 0) {
+        throw new Error('Not authorized to create invite');
+      }
+
+      // Generate a unique invite code
+      const inviteCode =
+        Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+      // Create invite record
+      await client.query(
+        `INSERT INTO room_invites (room_id, inviter_id, invite_code, expires_at)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '7 days')`,
+        [roomId, userId, inviteCode]
+      );
+
+      res.json({
+        inviteCode,
+        inviteUrl: `${process.env.FRONTEND_URL}/invite/${inviteCode}`,
+      });
+    });
+  } catch (error) {
+    console.error('Error creating room invite:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getInviteInfo = async (req, res) => {
+  const { inviteCode } = req.params;
+
+  try {
+    const result = await db.query(
+      `SELECT r.url_name 
+       FROM room_invites ri
+       JOIN rooms r ON ri.room_id = r.id
+       WHERE ri.invite_code = $1 
+       AND ri.expires_at > CURRENT_TIMESTAMP`,
+      [inviteCode]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Invalid or expired invite code' });
+    }
+
+    res.json({ urlName: result.rows[0].url_name });
+  } catch (error) {
+    console.error('Error fetching invite info:', error);
+    res.status(500).json({ message: 'Error processing invite' });
+  }
+};
+
+exports.joinRoomByInvite = async (req, res) => {
+  const { inviteCode } = req.params;
+  const userId = req.user.userId;
+
+  try {
+    await db.transaction(async (client) => {
+      // Check if invite exists and is valid
+      const inviteResult = await client.query(
+        `SELECT room_id 
+         FROM room_invites 
+         WHERE invite_code = $1 
+         AND expires_at > CURRENT_TIMESTAMP`,
+        [inviteCode]
+      );
+
+      if (inviteResult.rows.length === 0) {
+        throw new Error('Invalid or expired invite code');
+      }
+
+      const roomId = inviteResult.rows[0].room_id;
+
+      // Check if already a member
+      const memberCheck = await client.query(
+        'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
+        [roomId, userId]
+      );
+
+      if (memberCheck.rows.length > 0) {
+        throw new Error('Already a member of this room');
+      }
+
+      // Add user to room
+      await client.query('INSERT INTO room_members (room_id, user_id) VALUES ($1, $2)', [
+        roomId,
+        userId,
+      ]);
+    });
+
+    res.json({ message: 'Successfully joined room' });
+  } catch (error) {
+    console.error('Error joining room by invite:', error);
+    res.status(400).json({ message: error.message });
+  }
+};

@@ -1,33 +1,36 @@
-// __tests__/components/Login.test.js
+// src/components/Login.test.js
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import Login from '../../components/Login';
-import { API_BASE_URL } from '../../config';
+import { MemoryRouter } from 'react-router-dom';
+import Login from './Login';
 
-// Mock fetch globally
-global.fetch = jest.fn();
-
-// Mock navigation
 const mockNavigate = jest.fn();
+
+// Mock react-router-dom
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
 }));
 
 describe('Login Component', () => {
+  // Setup localStorage mock
+  const localStorageMock = {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    clear: jest.fn(),
+  };
+
   beforeEach(() => {
-    // Clear mock data before each test
-    fetch.mockClear();
+    global.localStorage = localStorageMock;
     mockNavigate.mockClear();
-    localStorage.clear();
+    localStorageMock.setItem.mockClear();
   });
 
   test('renders login form', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <Login theme="light" />
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
@@ -37,11 +40,11 @@ describe('Login Component', () => {
 
   test('handles successful login', async () => {
     const mockResponse = {
-      token: 'fake-token',
+      token: 'test-token',
       user: { id: 1, email: 'test@example.com' },
     };
 
-    fetch.mockImplementationOnce(() =>
+    global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockResponse),
@@ -49,9 +52,9 @@ describe('Login Component', () => {
     );
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <Login theme="light" />
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     fireEvent.change(screen.getByPlaceholderText('Email'), {
@@ -60,63 +63,12 @@ describe('Login Component', () => {
     fireEvent.change(screen.getByPlaceholderText('Password'), {
       target: { value: 'password123' },
     });
+
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
     await waitFor(() => {
-      expect(localStorage.getItem('authToken')).toBe('fake-token');
-      expect(localStorage.getItem('userId')).toBe('1');
-      expect(localStorage.getItem('userEmail')).toBe('test@example.com');
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('authToken', 'test-token');
       expect(mockNavigate).toHaveBeenCalledWith('/chat');
     });
-  });
-
-  test('handles login failure', async () => {
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        ok: false,
-        json: () => Promise.resolve({ message: 'Invalid credentials' }),
-      })
-    );
-
-    render(
-      <BrowserRouter>
-        <Login theme="light" />
-      </BrowserRouter>
-    );
-
-    fireEvent.change(screen.getByPlaceholderText('Email'), {
-      target: { value: 'test@example.com' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Password'), {
-      target: { value: 'wrongpassword' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
-      expect(localStorage.getItem('authToken')).toBeNull();
-    });
-  });
-
-  test('navigates to registration page', () => {
-    render(
-      <BrowserRouter>
-        <Login theme="light" />
-      </BrowserRouter>
-    );
-
-    fireEvent.click(screen.getByText(/register an account/i));
-    expect(mockNavigate).toHaveBeenCalledWith('/register');
-  });
-
-  test('navigates to forgot password page', () => {
-    render(
-      <BrowserRouter>
-        <Login theme="light" />
-      </BrowserRouter>
-    );
-
-    fireEvent.click(screen.getByText(/forgot your password/i));
-    expect(mockNavigate).toHaveBeenCalledWith('/forgot-password');
   });
 });

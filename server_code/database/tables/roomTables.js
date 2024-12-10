@@ -66,12 +66,11 @@ module.exports = async (client) => {
           id SERIAL PRIMARY KEY,
           room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
           inviter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-          invitee_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-          status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+          invite_code VARCHAR(50) UNIQUE NOT NULL,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           expires_at TIMESTAMP WITH TIME ZONE
         )
-      `);
+    `);
     console.log('✓ Room invites table created');
 
     // Create room_bans table

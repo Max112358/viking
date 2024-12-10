@@ -11,6 +11,8 @@ import CreateCategory from './components/CreateCategory';
 import CreateChannel from './components/CreateChannel'; // Add this import
 import CreateRoom from './components/create-room/CreateRoom';
 import FriendsPage from './components/friend-list/FriendsPage';
+import InviteHandler from './components/InviteHandler';
+
 import './colors.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -59,6 +61,7 @@ function App() {
               path="/v/:roomUrl/:channelId/create-thread"
               element={<CreateThread theme={theme} />}
             />
+            <Route path="/invite/:inviteCode" element={<InviteHandler theme={theme} />} />
             <Route path="/friends" element={<FriendsPage theme={theme} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>

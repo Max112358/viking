@@ -12,12 +12,14 @@ const {
   deleteRoom,
   checkRoomUrlAvailability,
   getRoomByUrl,
+  createRoomInvite,
+  joinRoomByInvite,
+  getInviteInfo,
 } = require('../controllers/roomController');
 
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// Update the getUserRooms route to use the root path
 router.get('/', getUserRooms);
 router.post('/', upload.single('thumbnail'), createRoom);
 router.post('/:roomId/join', joinRoom);
@@ -25,5 +27,10 @@ router.post('/:roomId/leave', leaveRoom);
 router.delete('/:roomId', deleteRoom);
 router.get('/check-url/:urlName', checkRoomUrlAvailability);
 router.get('/by-url/:urlName', getRoomByUrl);
+
+// invite routes
+router.post('/:roomId/invite', createRoomInvite);
+router.get('/invite/:inviteCode', getInviteInfo);
+router.post('/invite/:inviteCode/join', joinRoomByInvite);
 
 module.exports = router;
