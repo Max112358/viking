@@ -108,7 +108,11 @@ const Thread = ({ threadId, theme, onBack }) => {
 
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+    const yesterdayOnly = new Date(
+      yesterday.getFullYear(),
+      yesterday.getMonth(),
+      yesterday.getDate()
+    );
 
     if (dateOnly.getTime() === todayOnly.getTime()) {
       return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -126,6 +130,11 @@ const Thread = ({ threadId, theme, onBack }) => {
   };
 
   const renderGroupedPosts = () => {
+    const getImageUrl = (path) => {
+      if (!path) return null;
+      return path.replace(/^\/api/, '');
+    };
+
     const groupedPosts = [];
     let currentGroup = [];
 
@@ -159,7 +168,8 @@ const Thread = ({ threadId, theme, onBack }) => {
       <div key={group[0].id} className={`card ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
         <div className="card-body">
           <div className={`small mb-2 ${theme === 'dark' ? 'text-light-emphasis' : 'text-muted'}`}>
-            <strong>{group[0].author_email ? group[0].author_email : 'Anonymous'}</strong> • {formatPostDate(group[0].created_at)}
+            <strong>{group[0].author_email ? group[0].author_email : 'Anonymous'}</strong> •{' '}
+            {formatPostDate(group[0].created_at)}
           </div>
           {group.map((post, postIndex) => (
             <div key={post.id} className={postIndex > 0 ? 'mt-3' : ''}>
@@ -172,7 +182,7 @@ const Thread = ({ threadId, theme, onBack }) => {
                     <div key={attachment.id}>
                       {attachment.file_type.startsWith('image/') && (
                         <img
-                          src={`${API_BASE_URL}${attachment.file_url}`}
+                          src={getImageUrl(attachment.file_url)}
                           alt="Attachment"
                           className="img-fluid rounded"
                           style={{ maxHeight: '300px' }}
@@ -216,7 +226,11 @@ const Thread = ({ threadId, theme, onBack }) => {
         <h5 className="mb-0">{thread?.subject || 'Loading...'}</h5>
       </div>
 
-      <div ref={scrollContainerRef} className="flex-grow-1 overflow-auto p-3" onScroll={handleScroll}>
+      <div
+        ref={scrollContainerRef}
+        className="flex-grow-1 overflow-auto p-3"
+        onScroll={handleScroll}
+      >
         <div className="d-flex flex-column gap-3">{renderGroupedPosts()}</div>
       </div>
 

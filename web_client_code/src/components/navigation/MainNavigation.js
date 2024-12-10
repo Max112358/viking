@@ -26,7 +26,8 @@ const MainNavigation = ({
 
   const getRoomDisplay = (room) => {
     if (room.thumbnail_url) {
-      const fullUrl = `${API_BASE_URL}${room.thumbnail_url}`;
+      // Remove /api prefix if it exists
+      const fullUrl = room.thumbnail_url.replace(/^\/api/, '');
       return (
         <img
           src={fullUrl}

@@ -1,6 +1,5 @@
 // part of backend
 // server.js
-// server.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -8,10 +7,16 @@ const path = require('path');
 require('dotenv').config();
 const db = require('./database');
 const multer = require('multer');
-const upload = multer();
+const fs = require('fs');
 
 const app = express();
 const PORT = 3000;
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Middleware
 app.use(cors());
@@ -21,21 +26,26 @@ app.use(bodyParser.json());
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`Incoming request: ${req.method} ${req.url}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
   next();
 });
 
-// Error handling middleware for Multer
-app.use((error, req, res, next) => {
-  console.error('Error:', error);
-  if (error instanceof multer.MulterError) {
-    return res.status(400).json({ message: 'File upload error' });
-  }
-  next(error);
-});
+// Serve uploaded files with correct MIME types
+app.use(
+  '/uploads',
+  express.static('public/uploads', {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+        res.setHeader('Content-Type', 'image/jpeg');
+      } else if (path.endsWith('.png')) {
+        res.setHeader('Content-Type', 'image/png');
+      } else if (path.endsWith('.gif')) {
+        res.setHeader('Content-Type', 'image/gif');
+      }
+    },
+  })
+);
 
-// API Routes - define before static file serving
+// API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/rooms', require('./routes/rooms'));
 app.use('/api/categories', require('./routes/categories'));
@@ -44,21 +54,26 @@ app.use('/api/threads', require('./routes/threads'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/friends', require('./routes/friends'));
 
-// Serve uploaded files
-app.use('/uploads', express.static('public/uploads'));
-
 // Serve static files from React build directory
 app.use(express.static(path.join(__dirname, 'build')));
 
-// Handle React routing - this should come after API routes
+// Handle React routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Error:', error);
+  if (error instanceof multer.MulterError) {
+    return res.status(400).json({ message: 'File upload error' });
+  }
+  next(error);
 });
 
 // Initialize database
 db.initializeDatabase();
 
-// Start server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
