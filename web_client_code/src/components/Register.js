@@ -29,7 +29,7 @@ const Register = ({ theme }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,10 +53,15 @@ const Register = ({ theme }) => {
 
   return (
     <div
-      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${theme === 'dark' ? 'bg-dark text-light' : 'bg-light'}`}
+      className={`d-flex justify-content-center align-items-start min-vh-100 pt-2 ${
+        theme === 'dark' ? 'bg-dark text-light' : 'bg-light'
+      }`}
     >
       <div className="w-100" style={{ maxWidth: '500px' }}>
-        <form onSubmit={handleSubmit} className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}>
+        <form
+          onSubmit={handleSubmit}
+          className={`card py-2 px-3 ${theme === 'dark' ? 'bg-mid-dark text-light' : ''}`}
+        >
           <div className="card-body p-2">
             <div className="text-center mb-3">
               <img

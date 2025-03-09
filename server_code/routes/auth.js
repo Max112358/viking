@@ -5,8 +5,7 @@ const router = express.Router();
 //const authenticateToken = require('../middleware/auth');
 const { register, login, verifyToken } = require('../controllers/authController');
 
-// Protect all routes with authentication
-//router.use(authenticateToken);
+// DO NOT AUTHENTICATE PUBLIC PAGES
 
 router.post('/register', register);
 router.post('/login', login);
